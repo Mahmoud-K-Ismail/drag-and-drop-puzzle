@@ -1,0 +1,12 @@
+# <type>: <short summary>
+#
+# Types: feat, fix, refactor, docs, chore, test, perf, build, ci, style
+#
+# Why:
+# - <why this change is needed>
+#
+# AI usage:
+# - <what AI tool was used and how>
+#
+# Notes:
+# - <optional extra context>

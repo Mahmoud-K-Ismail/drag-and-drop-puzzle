@@ -1,0 +1,29 @@
+#!/bin/sh
+
+MSG_FILE="$1"
+MSG="$(sed -E '/^#/d;/^\s*$/d' "$MSG_FILE")"
+
+if [ -z "$MSG" ]; then
+  echo "Commit message is empty."
+  exit 1
+fi
+
+FIRST_LINE="$(printf '%s\n' "$MSG" | head -n1)"
+
+if ! printf '%s' "$FIRST_LINE" | grep -Eq '^(feat|fix|refactor|docs|chore|test|perf|build|ci|style): .{5,}$'; then
+  echo "Invalid subject line. Use: <type>: <summary>"
+  echo "Allowed types: feat, fix, refactor, docs, chore, test, perf, build, ci, style"
+  exit 1
+fi
+
+if ! printf '%s\n' "$MSG" | grep -Eiq '^Why:'; then
+  echo "Missing required section: Why:"
+  exit 1
+fi
+
+if ! printf '%s\n' "$MSG" | grep -Eiq '^AI usage:'; then
+  echo "Missing required section: AI usage:"
+  exit 1
+fi
+
+exit 0
