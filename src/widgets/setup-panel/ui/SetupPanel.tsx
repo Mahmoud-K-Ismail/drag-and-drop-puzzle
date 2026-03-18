@@ -12,15 +12,19 @@ const examples = [
 
 export function SetupPanel() {
   const { apiKey, prompt, selectedExample, setApiKey, setPrompt, setSelectedExample } = useSetupStore()
-  const { setLines, isLoading, setLoading } = usePuzzleStore()
+  const { setLines, isLoading, setLoading, error, setError } = usePuzzleStore()
 
   const selectedValue = useMemo(() => (selectedExample.length > 0 ? selectedExample : ''), [selectedExample])
 
   async function handleGenerate() {
     try {
+      setError(null)
       setLoading(true)
       const puzzle = await generatePuzzle({ apiKey, prompt })
       setLines(puzzle.lines)
+    } catch (generationError) {
+      const message = generationError instanceof Error ? generationError.message : 'Failed to generate puzzle.'
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -86,6 +90,8 @@ export function SetupPanel() {
       >
         {isLoading ? 'Generating...' : 'Generate Puzzle'}
       </button>
+
+      {error ? <p className={styles.errorText}>{error}</p> : null}
     </aside>
   )
 }

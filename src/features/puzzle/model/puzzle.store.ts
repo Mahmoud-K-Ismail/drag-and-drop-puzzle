@@ -13,10 +13,12 @@ type PuzzleState = {
   orderedIds: string[]
   indentById: Record<string, number>
   isLoading: boolean
+  error: string | null
   setLines: (lines: PuzzleLine[]) => void
   reorderLines: (activeId: string, overId: string) => void
   setIndent: (id: string, indent: number) => void
   setLoading: (isLoading: boolean) => void
+  setError: (error: string | null) => void
 }
 
 function shuffleIds(ids: string[]) {
@@ -35,10 +37,11 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
   orderedIds: [],
   indentById: {},
   isLoading: false,
+  error: null,
   setLines: (lines) => {
     const orderedIds = shuffleIds(lines.map((line) => line.id))
     const indentById = Object.fromEntries(lines.map((line) => [line.id, 0]))
-    set({ lines, orderedIds, indentById })
+    set({ lines, orderedIds, indentById, error: null })
   },
   reorderLines: (activeId, overId) => {
     if (activeId === overId) {
@@ -73,4 +76,5 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
     }))
   },
   setLoading: (isLoading) => set({ isLoading }),
+  setError: (error) => set({ error }),
 }))
