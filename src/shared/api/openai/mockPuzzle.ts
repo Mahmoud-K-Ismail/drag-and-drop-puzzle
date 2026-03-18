@@ -1,5 +1,15 @@
 import type { GeneratedPuzzle } from '../contracts/puzzle.schema'
 
+type SupportedLanguage = 'auto' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp'
+
+function resolveLanguage(language: SupportedLanguage) {
+  if (language === 'auto') {
+    return 'javascript'
+  }
+
+  return language
+}
+
 function normalizeTaskLabel(prompt: string) {
   const trimmed = prompt.trim()
   if (trimmed.length === 0) {
@@ -9,11 +19,41 @@ function normalizeTaskLabel(prompt: string) {
   return trimmed.replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 24).toLowerCase() || 'task'
 }
 
-export function buildMockPuzzle(prompt: string): GeneratedPuzzle {
+export function buildMockPuzzle(prompt: string, language: SupportedLanguage): GeneratedPuzzle {
   const taskLabel = normalizeTaskLabel(prompt)
+  const targetLanguage = resolveLanguage(language)
+
+  if (targetLanguage === 'python') {
+    return {
+      language: targetLanguage,
+      lines: [
+        {
+          id: 'line-1',
+          code: `def solve_${taskLabel}(input_value):`,
+          explanation: 'Defines the solution function with one input value.',
+          targetLine: 0,
+          targetIndent: 0,
+        },
+        {
+          id: 'line-2',
+          code: 'output = input_value',
+          explanation: 'Initializes an output variable from the input.',
+          targetLine: 1,
+          targetIndent: 1,
+        },
+        {
+          id: 'line-3',
+          code: 'return output',
+          explanation: 'Returns the resulting value.',
+          targetLine: 2,
+          targetIndent: 1,
+        },
+      ],
+    }
+  }
 
   return {
-    language: 'javascript',
+    language: targetLanguage,
     lines: [
       {
         id: 'line-1',

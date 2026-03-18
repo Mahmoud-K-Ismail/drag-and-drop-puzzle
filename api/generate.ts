@@ -17,6 +17,7 @@ type GeneratedPuzzle = {
 const requestSchema = z.object({
   apiKey: z.string().min(1),
   prompt: z.string().min(1),
+  language: z.enum(['auto', 'javascript', 'typescript', 'python', 'java', 'cpp']).default('auto'),
 })
 
 const openAiLineSchema = z.object({
@@ -94,7 +95,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
-    const { prompt, apiKey } = requestSchema.parse(body)
+    const { prompt, apiKey, language } = requestSchema.parse(body)
+
+    const languageInstruction =
+      language === 'auto'
+        ? 'Infer the most suitable programming language from the user task if not explicitly stated.'
+        : `Generate code strictly in ${language}.`
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -110,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           { role: 'system', content: SYSTEM_PROMPT },
           {
             role: 'user',
-            content: `Task: ${prompt}`,
+            content: `Task: ${prompt}\nLanguage preference: ${languageInstruction}`,
           },
         ],
       }),

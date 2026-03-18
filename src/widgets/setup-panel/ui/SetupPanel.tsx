@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useSetupStore } from '../../../features/setup/model/setup.store'
+import { type SupportedLanguage, useSetupStore } from '../../../features/setup/model/setup.store'
 import { usePuzzleStore } from '../../../features/puzzle/model/puzzle.store'
 import { generatePuzzle } from '../../../shared/api/openai/generatePuzzle'
 import styles from './SetupPanel.module.css'
@@ -10,8 +10,26 @@ const examples = [
   'Write a function that returns the factorial of a number using recursion.',
 ]
 
+const languages = [
+  { value: 'auto', label: 'Auto-detect from prompt' },
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'typescript', label: 'TypeScript' },
+  { value: 'python', label: 'Python' },
+  { value: 'java', label: 'Java' },
+  { value: 'cpp', label: 'C++' },
+] as const
+
 export function SetupPanel() {
-  const { apiKey, prompt, selectedExample, setApiKey, setPrompt, setSelectedExample } = useSetupStore()
+  const {
+    apiKey,
+    prompt,
+    selectedExample,
+    selectedLanguage,
+    setApiKey,
+    setPrompt,
+    setSelectedExample,
+    setSelectedLanguage,
+  } = useSetupStore()
   const { setLines, isLoading, setLoading, error, setError } = usePuzzleStore()
 
   const selectedValue = useMemo(() => (selectedExample.length > 0 ? selectedExample : ''), [selectedExample])
@@ -20,8 +38,12 @@ export function SetupPanel() {
     try {
       setError(null)
       setLoading(true)
-      const puzzle = await generatePuzzle({ apiKey, prompt })
-      setLines(puzzle.lines)
+      const puzzle = await generatePuzzle({
+        apiKey,
+        prompt,
+        language: selectedLanguage,
+      })
+      setLines(puzzle.lines, puzzle.language)
     } catch (generationError) {
       const message = generationError instanceof Error ? generationError.message : 'Failed to generate puzzle.'
       setError(message)
@@ -64,6 +86,21 @@ export function SetupPanel() {
           onChange={(event) => setPrompt(event.target.value)}
           placeholder="Describe the programming task"
         />
+      </label>
+
+      <label className={styles.label}>
+        Output Language
+        <select
+          className={styles.select}
+          value={selectedLanguage}
+          onChange={(event) => setSelectedLanguage(event.target.value as SupportedLanguage)}
+        >
+          {languages.map((language) => (
+            <option key={language.value} value={language.value}>
+              {language.label}
+            </option>
+          ))}
+        </select>
       </label>
 
       <label className={styles.label}>

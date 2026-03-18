@@ -16,6 +16,9 @@ export const generatedPuzzleSchema = z.object({
 export const generatePuzzleRequestSchema = z.object({
   apiKey: z.string().min(1),
   prompt: z.string().min(1),
+  language: z
+    .enum(['auto', 'javascript', 'typescript', 'python', 'java', 'cpp'])
+    .default('auto'),
 })
 
 export type GeneratedPuzzle = z.infer<typeof generatedPuzzleSchema>

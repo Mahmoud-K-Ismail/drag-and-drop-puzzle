@@ -18,7 +18,28 @@ import styles from './PuzzleBoard.module.css'
 
 const INDENT_STEP = 24
 
-function SortableBlock({ id, code, indent }: { id: string; code: string; indent: number }) {
+function toMonacoLanguage(language: string) {
+  switch (language.toLowerCase()) {
+    case 'cpp':
+      return 'cpp'
+    case 'c++':
+      return 'cpp'
+    default:
+      return language.toLowerCase()
+  }
+}
+
+function SortableBlock({
+  id,
+  code,
+  indent,
+  language,
+}: {
+  id: string
+  code: string
+  indent: number
+  language: string
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
   })
@@ -34,7 +55,7 @@ function SortableBlock({ id, code, indent }: { id: string; code: string; indent:
     <article ref={setNodeRef} style={style} className={styles.card} {...attributes} {...listeners}>
       <Editor
         height="56px"
-        defaultLanguage="javascript"
+        language={language}
         value={code}
         options={{
           readOnly: true,
@@ -57,6 +78,7 @@ function SortableBlock({ id, code, indent }: { id: string; code: string; indent:
 
 export function PuzzleBoard() {
   const lines = usePuzzleStore((state) => state.lines)
+  const language = usePuzzleStore((state) => state.language)
   const orderedIds = usePuzzleStore((state) => state.orderedIds)
   const indentById = usePuzzleStore((state) => state.indentById)
   const reorderLines = usePuzzleStore((state) => state.reorderLines)
@@ -82,6 +104,7 @@ export function PuzzleBoard() {
   }
 
   const lineById = Object.fromEntries(lines.map((line) => [line.id, line]))
+  const monacoLanguage = toMonacoLanguage(language)
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -100,6 +123,7 @@ export function PuzzleBoard() {
                 id={line.id}
                 code={line.code}
                 indent={indentById[line.id] ?? 0}
+                language={monacoLanguage}
               />
             )
           })}

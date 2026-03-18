@@ -5,7 +5,11 @@ import {
 } from '../contracts/puzzle.schema'
 import { buildMockPuzzle } from './mockPuzzle'
 
-export async function generatePuzzle(request: { apiKey: string; prompt: string }): Promise<GeneratedPuzzle> {
+export async function generatePuzzle(request: {
+  apiKey: string
+  prompt: string
+  language: 'auto' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp'
+}): Promise<GeneratedPuzzle> {
   const payload = generatePuzzleRequestSchema.parse(request)
 
   try {
@@ -19,7 +23,7 @@ export async function generatePuzzle(request: { apiKey: string; prompt: string }
 
     if (!response.ok) {
       if (import.meta.env.DEV) {
-        return buildMockPuzzle(payload.prompt)
+        return buildMockPuzzle(payload.prompt, payload.language)
       }
 
       throw new Error('Failed to generate puzzle')
@@ -29,7 +33,7 @@ export async function generatePuzzle(request: { apiKey: string; prompt: string }
     return generatedPuzzleSchema.parse(data)
   } catch (error) {
     if (import.meta.env.DEV) {
-      return buildMockPuzzle(payload.prompt)
+      return buildMockPuzzle(payload.prompt, payload.language)
     }
 
     throw error

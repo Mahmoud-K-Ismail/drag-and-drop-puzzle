@@ -9,12 +9,13 @@ export type PuzzleLine = {
 }
 
 type PuzzleState = {
+  language: string
   lines: PuzzleLine[]
   orderedIds: string[]
   indentById: Record<string, number>
   isLoading: boolean
   error: string | null
-  setLines: (lines: PuzzleLine[]) => void
+  setLines: (lines: PuzzleLine[], language: string) => void
   reorderLines: (activeId: string, overId: string) => void
   setIndent: (id: string, indent: number) => void
   setLoading: (isLoading: boolean) => void
@@ -33,15 +34,16 @@ function shuffleIds(ids: string[]) {
 }
 
 export const usePuzzleStore = create<PuzzleState>((set) => ({
+  language: 'javascript',
   lines: [],
   orderedIds: [],
   indentById: {},
   isLoading: false,
   error: null,
-  setLines: (lines) => {
+  setLines: (lines, language) => {
     const orderedIds = shuffleIds(lines.map((line) => line.id))
     const indentById = Object.fromEntries(lines.map((line) => [line.id, 0]))
-    set({ lines, orderedIds, indentById, error: null })
+    set({ lines, orderedIds, indentById, language, error: null })
   },
   reorderLines: (activeId, overId) => {
     if (activeId === overId) {
