@@ -67,6 +67,7 @@ export function SetupPanel() {
   return (
     <aside className={styles.panel}>
       <h1 className={styles.title}>AI Code Puzzle</h1>
+      <p className={styles.subtitle}>Generate code, then reconstruct it by drag-and-drop.</p>
 
       <label className={styles.label}>
         OpenAI API Key

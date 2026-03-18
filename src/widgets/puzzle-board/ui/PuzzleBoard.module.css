@@ -1,16 +1,27 @@
 .board {
   padding: 20px;
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  min-height: 74vh;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(15, 118, 110, 0.03) 0,
+      rgba(15, 118, 110, 0.03) 1px,
+      transparent 1px,
+      transparent 44px
+    ),
+    linear-gradient(180deg, #f5f9fd 0%, #eff4fa 100%);
 }
 
 .card {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-soft);
   border-radius: 12px;
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   cursor: grab;
+  backdrop-filter: blur(3px);
 }
 
 .card:active {
@@ -18,8 +29,19 @@
 }
 
 .empty {
+  margin: 20px;
   color: var(--color-text-muted);
   border: 1px dashed var(--color-border);
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 14px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+
+@media (max-width: 980px) {
+  .board {
+    min-height: 52vh;
+    padding: 14px;
+  }
 }
