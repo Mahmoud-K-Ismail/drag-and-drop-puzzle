@@ -78,6 +78,7 @@ function SortableBlock({
 
 export function PuzzleBoard() {
   const lines = usePuzzleStore((state) => state.lines)
+  const isLoading = usePuzzleStore((state) => state.isLoading)
   const language = usePuzzleStore((state) => state.language)
   const orderedIds = usePuzzleStore((state) => state.orderedIds)
   const indentById = usePuzzleStore((state) => state.indentById)
@@ -97,6 +98,16 @@ export function PuzzleBoard() {
     const currentIndent = indentById[activeId] ?? 0
     const nextIndent = currentIndent + Math.round(event.delta.x / INDENT_STEP)
     setIndent(activeId, nextIndent)
+  }
+
+  if (isLoading) {
+    return (
+      <section className={styles.loadingWrap}>
+        <div className={styles.loadingPulse} />
+        <p className={styles.loadingTitle}>Generating your puzzle...</p>
+        <p className={styles.loadingSubtitle}>We are building code blocks and line-by-line explanations.</p>
+      </section>
+    )
   }
 
   if (lines.length === 0) {

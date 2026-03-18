@@ -30,12 +30,13 @@ export function SetupPanel() {
     setSelectedExample,
     setSelectedLanguage,
   } = useSetupStore()
-  const { setLines, isLoading, setLoading, error, setError } = usePuzzleStore()
+  const { setLines, isLoading, setLoading, error, setError, setStarted } = usePuzzleStore()
 
   const selectedValue = useMemo(() => (selectedExample.length > 0 ? selectedExample : ''), [selectedExample])
 
   async function handleGenerate() {
     try {
+      setStarted(true)
       setError(null)
       setLoading(true)
       const puzzle = await generatePuzzle({
@@ -128,6 +129,8 @@ export function SetupPanel() {
       >
         {isLoading ? 'Generating...' : 'Generate Puzzle'}
       </button>
+
+      {isLoading ? <p className={styles.statusText}>Generating code blocks and explanations...</p> : null}
 
       {error ? <p className={styles.errorText}>{error}</p> : null}
     </aside>

@@ -95,6 +95,12 @@
   cursor: not-allowed;
 }
 
+.statusText {
+  margin: -2px 0 0;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
 .errorText {
   margin: 0;
   color: var(--color-danger);

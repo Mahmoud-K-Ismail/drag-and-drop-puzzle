@@ -13,11 +13,13 @@ type PuzzleState = {
   lines: PuzzleLine[]
   orderedIds: string[]
   indentById: Record<string, number>
+  hasStarted: boolean
   isLoading: boolean
   error: string | null
   setLines: (lines: PuzzleLine[], language: string) => void
   reorderLines: (activeId: string, overId: string) => void
   setIndent: (id: string, indent: number) => void
+  setStarted: (hasStarted: boolean) => void
   setLoading: (isLoading: boolean) => void
   setError: (error: string | null) => void
 }
@@ -38,6 +40,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
   lines: [],
   orderedIds: [],
   indentById: {},
+  hasStarted: false,
   isLoading: false,
   error: null,
   setLines: (lines, language) => {
@@ -77,6 +80,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
       },
     }))
   },
+  setStarted: (hasStarted) => set({ hasStarted }),
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
 }))
