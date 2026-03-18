@@ -6,7 +6,7 @@
   padding: 20px;
   max-width: 1440px;
   margin: 0 auto;
-  transition: grid-template-columns 0.45s ease, gap 0.45s ease;
+  transition: grid-template-columns 0.85s cubic-bezier(0.22, 1, 0.36, 1), gap 0.6s ease;
 }
 
 .initial {
@@ -27,7 +27,11 @@
   height: fit-content;
   position: sticky;
   top: 20px;
-  transition: transform 0.35s ease, box-shadow 0.35s ease;
+  transition: transform 0.75s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.5s ease;
+}
+
+.active .leftPane {
+  animation: setupLaunch 1.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .rightPane {
@@ -37,10 +41,10 @@
   box-shadow: var(--shadow-md);
   overflow: hidden;
   transition:
-    opacity 0.35s ease,
-    transform 0.35s ease,
-    max-height 0.35s ease,
-    border-color 0.35s ease;
+    opacity 0.65s ease,
+    transform 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    max-height 0.6s ease,
+    border-color 0.5s ease;
 }
 
 .initial .leftPane {
@@ -49,7 +53,7 @@
 
 .initial .rightPane {
   opacity: 0;
-  transform: translateY(20px) scale(0.98);
+  transform: translateY(18px) scale(0.985);
   pointer-events: none;
   max-height: 0;
   border-color: transparent;
@@ -58,8 +62,23 @@
 
 .active .rightPane {
   opacity: 1;
-  transform: none;
+  transform: translateY(0) scale(1);
   max-height: 1600px;
+}
+
+@keyframes setupLaunch {
+  0% {
+    transform: translateX(38vw) scale(0.985);
+    box-shadow: 0 22px 38px rgba(15, 23, 42, 0.16);
+  }
+
+  65% {
+    transform: translateX(-10px) scale(1.01);
+  }
+
+  100% {
+    transform: translateX(0) scale(1);
+  }
 }
 
 .boardHeader {
@@ -106,6 +125,10 @@
 
   .leftPane {
     position: static;
+  }
+
+  .active .leftPane {
+    animation: none;
   }
 
   .initial .rightPane {
