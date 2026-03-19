@@ -3,7 +3,8 @@ import {
   generatedPuzzleSchema,
   type GeneratedPuzzle,
 } from '../contracts/puzzle.schema'
-import { buildMockPuzzle } from './mockPuzzle'
+
+const GENERATE_TIMEOUT_MS = 45000
 
 export async function generatePuzzle(request: {
   apiKey: string
@@ -11,6 +12,8 @@ export async function generatePuzzle(request: {
   language: 'auto' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp'
 }): Promise<GeneratedPuzzle> {
   const payload = generatePuzzleRequestSchema.parse(request)
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS)
 
   try {
     const response = await fetch('/api/generate', {
@@ -19,23 +22,42 @@ export async function generatePuzzle(request: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
+      signal: controller.signal,
     })
 
     if (!response.ok) {
-      if (import.meta.env.DEV) {
-        return buildMockPuzzle(payload.prompt, payload.language)
+      let details = 'Failed to generate puzzle'
+
+      try {
+        const body = await response.json()
+        const detailText =
+          typeof body?.details === 'string'
+            ? body.details
+            : Array.isArray(body?.details)
+              ? JSON.stringify(body.details)
+              : ''
+
+        details = body?.error ?? details
+
+        if (detailText.length > 0) {
+          details = `${details}: ${detailText}`
+        }
+      } catch {
+        // Use default details string.
       }
 
-      throw new Error('Failed to generate puzzle')
+      throw new Error(details)
     }
 
     const data = await response.json()
     return generatedPuzzleSchema.parse(data)
   } catch (error) {
-    if (import.meta.env.DEV) {
-      return buildMockPuzzle(payload.prompt, payload.language)
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw new Error('Generation timed out after 45 seconds. Try a shorter prompt or simpler constraints.')
     }
 
     throw error
+  } finally {
+    window.clearTimeout(timeoutId)
   }
 }

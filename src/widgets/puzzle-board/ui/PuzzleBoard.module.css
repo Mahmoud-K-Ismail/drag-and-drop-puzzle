@@ -1,7 +1,7 @@
 .board {
   padding: 20px;
   display: grid;
-  gap: 10px;
+  gap: 14px;
   min-height: 74vh;
   background:
     repeating-linear-gradient(
@@ -14,18 +14,127 @@
     linear-gradient(180deg, #f5f9fd 0%, #eff4fa 100%);
 }
 
+.boardHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.boardHintSecondary {
+  margin: -8px 0 2px;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+}
+
+.lanesGrid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.95fr) minmax(320px, 1.05fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.lane {
+  border: 1px solid var(--color-border-soft);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  overflow: hidden;
+  min-height: 400px;
+}
+
+.laneHeader {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border-soft);
+  background: linear-gradient(180deg, rgba(15, 118, 110, 0.07), rgba(15, 118, 110, 0.02));
+}
+
+.laneTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.laneSubtitle {
+  margin: 3px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.laneBody {
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.emptyLane {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--color-text-muted);
+  padding: 8px;
+}
+
 .card {
   border: 1px solid var(--color-border-soft);
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--color-surface);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-  cursor: grab;
-  backdrop-filter: blur(3px);
+  cursor: default;
+  position: relative;
+  touch-action: manipulation;
 }
 
-.card:active {
-  cursor: grabbing;
+.cardDragging {
+  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.18);
+}
+
+.blockActions {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.card:hover .blockActions,
+.card:focus-within .blockActions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.infoButton:focus-visible {
+  outline: 2px solid rgba(15, 118, 110, 0.35);
+  outline-offset: 1px;
+}
+
+.infoButton {
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.explanation {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  border-bottom: 1px dashed var(--color-border-soft);
+  background: #f6fbfa;
+}
+
+.codeContainer {
+  border-top: 1px solid transparent;
+  padding-right: 6px;
 }
 
 .empty {
@@ -90,6 +199,10 @@
   .board {
     min-height: 52vh;
     padding: 14px;
+  }
+
+  .lanesGrid {
+    grid-template-columns: 1fr;
   }
 
   .loadingWrap {

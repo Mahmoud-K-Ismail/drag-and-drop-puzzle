@@ -20,29 +20,16 @@ const requestSchema = z.object({
   language: z.enum(['auto', 'javascript', 'typescript', 'python', 'java', 'cpp']).default('auto'),
 })
 
-const openAiLineSchema = z.object({
-  code: z.string(),
-  explanation: z.string(),
-  targetIndent: z.number().int().nonnegative().optional(),
-})
-
-const openAiPuzzleSchema = z.object({
-  language: z.string().min(1),
-  lines: z.array(openAiLineSchema).min(1),
-})
+const TARGET_MAX_LINES = 16
 
 const SYSTEM_PROMPT = [
-  'You generate educational code puzzle data.',
-  'Output only valid JSON with this exact shape:',
-  '{"language":"string","lines":[{"code":"string","explanation":"string","targetIndent":number}]}',
+  'You generate concise, runnable code solutions only.',
+  'Output plain code text only, with no markdown and no surrounding explanation.',
   'Rules:',
-  '1) code must solve the user task.',
-  '2) no lines that are comments only.',
-  '3) no trailing comments at the end of code lines.',
-  '4) explanations must be short and natural language.',
-  '5) each line should be one meaningful code line.',
-  '6) keep targetIndent as non-negative integer where 0 means no indentation.',
-  '7) do not wrap the JSON in markdown.',
+  '1) solve the user task correctly.',
+  '2) no comment-only lines.',
+  '3) no trailing inline comments.',
+  `4) keep it concise and usually under ${TARGET_MAX_LINES} lines unless strictly necessary.`,
 ].join('\n')
 
 function stripInlineComments(line: string) {
@@ -58,32 +45,67 @@ function estimateIndent(line: string) {
   return Math.floor((leadingTabs + leadingSpaces) / 2)
 }
 
-function normalizeGeneratedPuzzle(raw: z.infer<typeof openAiPuzzleSchema>): GeneratedPuzzle {
-  const normalizedLines = raw.lines
-    .map((line, index) => {
-      const indentFromCode = estimateIndent(line.code)
-      const cleanCode = stripInlineComments(line.code).trimStart()
+function stripCodeFences(code: string) {
+  return code.replace(/^```[a-zA-Z0-9]*\n?/g, '').replace(/\n?```$/g, '')
+}
+
+function detectLanguageFromCode(codeText: string) {
+  const code = codeText.toLowerCase()
+
+  if (code.includes('def ') || code.includes('import ') || code.includes('elif ')) {
+    return 'python'
+  }
+
+  if (code.includes('#include') || code.includes('std::') || code.includes('int main(')) {
+    return 'cpp'
+  }
+
+  if (code.includes('public class ') || code.includes('system.out.println')) {
+    return 'java'
+  }
+
+  if (code.includes(': string') || code.includes(': number') || code.includes('interface ')) {
+    return 'typescript'
+  }
+
+  return 'javascript'
+}
+
+function normalizeGeneratedPuzzle(codeText: string, selectedLanguage: string): GeneratedPuzzle {
+  const normalizedLines = stripCodeFences(codeText)
+    .split(/\r?\n/)
+    .map((piece) => {
+      const indentFromCode = estimateIndent(piece)
+      const cleanCode = stripInlineComments(piece).trimStart()
 
       if (cleanCode.length === 0 || cleanCode.startsWith('//') || cleanCode.startsWith('/*')) {
         return null
       }
 
       return {
-        id: `line-${index + 1}`,
         code: cleanCode,
-        explanation: line.explanation.trim() || 'This line contributes to the solution.',
-        targetLine: index,
-        targetIndent: line.targetIndent ?? indentFromCode,
+        targetIndent: indentFromCode,
       }
     })
-    .filter((line): line is GeneratedLine => line !== null)
+    .filter((entry): entry is { code: string; targetIndent: number } => entry !== null)
+    .slice(0, TARGET_MAX_LINES)
+    .map((entry, index) => ({
+      id: `line-${index + 1}`,
+      code: entry.code,
+      explanation: '',
+      targetLine: index,
+      targetIndent: entry.targetIndent,
+    }))
 
   if (normalizedLines.length === 0) {
     throw new Error('Model returned no usable code lines')
   }
 
+  const resolvedLanguage =
+    selectedLanguage === 'auto' ? detectLanguageFromCode(codeText) : selectedLanguage
+
   return {
-    language: raw.language,
+    language: resolvedLanguage,
     lines: normalizedLines,
   }
 }
@@ -93,10 +115,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  try {
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
-    const { prompt, apiKey, language } = requestSchema.parse(body)
+  const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body
+  const requestResult = requestSchema.safeParse(body)
 
+  if (!requestResult.success) {
+    return res.status(400).json({
+      error: 'Invalid request payload',
+      details: requestResult.error.issues,
+    })
+  }
+
+  const { prompt, apiKey, language } = requestResult.data
+
+  try {
     const languageInstruction =
       language === 'auto'
         ? 'Infer the most suitable programming language from the user task if not explicitly stated.'
@@ -111,12 +142,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
         temperature: 0.2,
-        response_format: { type: 'json_object' },
+        max_tokens: 700,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           {
             role: 'user',
-            content: `Task: ${prompt}\nLanguage preference: ${languageInstruction}`,
+            content: `Task: ${prompt}\nLanguage preference: ${languageInstruction}\nReturn only the final code.`,
           },
         ],
       }),
@@ -137,16 +168,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(502).json({ error: 'OpenAI returned an empty response' })
     }
 
-    const parsedPayload = JSON.parse(rawContent)
-    const rawPuzzle = openAiPuzzleSchema.parse(parsedPayload)
-    const normalizedPuzzle = normalizeGeneratedPuzzle(rawPuzzle)
+    const normalizedPuzzle = normalizeGeneratedPuzzle(rawContent, language)
 
     return res.status(200).json(normalizedPuzzle)
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Invalid request payload', details: error.issues })
-    }
-
     const message = error instanceof Error ? error.message : 'Unknown server error'
     return res.status(500).json({ error: message })
   }

@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { type SupportedLanguage, useSetupStore } from '../../../features/setup/model/setup.store'
 import { usePuzzleStore } from '../../../features/puzzle/model/puzzle.store'
 import { generatePuzzle } from '../../../shared/api/openai/generatePuzzle'
+import { generateExplanations } from '../../../shared/api/openai/generateExplanations'
 import styles from './SetupPanel.module.css'
 
 const examples = [
@@ -19,6 +20,13 @@ const languages = [
   { value: 'cpp', label: 'C++' },
 ] as const
 
+const loadingMessages = [
+  'Connecting to model...',
+  'Generating concise solution...',
+  'Preparing draggable line blocks...',
+  'Attaching line-by-line explanations...',
+]
+
 export function SetupPanel() {
   const {
     apiKey,
@@ -30,9 +38,24 @@ export function SetupPanel() {
     setSelectedExample,
     setSelectedLanguage,
   } = useSetupStore()
-  const { setLines, isLoading, setLoading, error, setError, setStarted } = usePuzzleStore()
+  const { setLines, setLineExplanations, isLoading, setLoading, error, setError, setStarted, setExplaining } =
+    usePuzzleStore()
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0)
 
   const selectedValue = useMemo(() => (selectedExample.length > 0 ? selectedExample : ''), [selectedExample])
+
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingMessageIndex(0)
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      setLoadingMessageIndex((current) => (current + 1) % loadingMessages.length)
+    }, 1200)
+
+    return () => window.clearInterval(interval)
+  }, [isLoading])
 
   async function handleGenerate() {
     try {
@@ -45,9 +68,26 @@ export function SetupPanel() {
         language: selectedLanguage,
       })
       setLines(puzzle.lines, puzzle.language)
+
+      setExplaining(true)
+      void generateExplanations({
+        apiKey,
+        language: puzzle.language,
+        lines: puzzle.lines.map((line) => ({ id: line.id, code: line.code })),
+      })
+        .then((items) => {
+          setLineExplanations(items)
+        })
+        .catch(() => {
+          // Keep gameplay flow running even if explanations fail.
+        })
+        .finally(() => {
+          setExplaining(false)
+        })
     } catch (generationError) {
       const message = generationError instanceof Error ? generationError.message : 'Failed to generate puzzle.'
       setError(message)
+      setExplaining(false)
     } finally {
       setLoading(false)
     }
@@ -130,7 +170,7 @@ export function SetupPanel() {
         {isLoading ? 'Generating...' : 'Generate Puzzle'}
       </button>
 
-      {isLoading ? <p className={styles.statusText}>Generating code blocks and explanations...</p> : null}
+      {isLoading ? <p className={styles.statusText}>{loadingMessages[loadingMessageIndex]}</p> : null}
 
       {error ? <p className={styles.errorText}>{error}</p> : null}
     </aside>
