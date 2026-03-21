@@ -1,10 +1,16 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import hljs from 'highlight.js/lib/core'
+import cpp from 'highlight.js/lib/languages/cpp'
+import java from 'highlight.js/lib/languages/java'
+import javascript from 'highlight.js/lib/languages/javascript'
+import python from 'highlight.js/lib/languages/python'
+import typescript from 'highlight.js/lib/languages/typescript'
 import {
   DndContext,
   type DragEndEvent,
   PointerSensor,
   useDroppable,
-  closestCenter,
+  pointerWithin,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
@@ -19,11 +25,27 @@ import styles from './PuzzleBoard.module.css'
 
 const INDENT_STEP = 24
 
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('java', java)
+hljs.registerLanguage('cpp', cpp)
+
+function toHighlightLanguage(language: string) {
+  switch (language.toLowerCase()) {
+    case 'c++':
+      return 'cpp'
+    default:
+      return language.toLowerCase()
+  }
+}
+
 function SortableBlock({
   id,
   code,
   explanation,
   indent,
+  language,
   container,
   incorrect,
 }: {
@@ -31,11 +53,17 @@ function SortableBlock({
   code: string
   explanation: string
   indent: number
+  language: string
   container: 'source' | 'target'
   incorrect: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { container } })
   const [showExplanation, setShowExplanation] = useState(false)
+  const highlightLanguage = toHighlightLanguage(language)
+  const highlightedCode = hljs.highlight(code, {
+    language: hljs.getLanguage(highlightLanguage) ? highlightLanguage : 'plaintext',
+    ignoreIllegals: true,
+  }).value
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -71,7 +99,9 @@ function SortableBlock({
       {showExplanation ? <p className={styles.explanation}>{explanation}</p> : null}
 
       <div className={styles.codeContainer}>
-        <pre className={styles.codeText}>{code}</pre>
+        <pre className={`${styles.codeText} hljs`}>
+          <code dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+        </pre>
       </div>
     </article>
   )
@@ -105,6 +135,7 @@ export function PuzzleBoard() {
   const lines = usePuzzleStore((state) => state.lines)
   const isLoading = usePuzzleStore((state) => state.isLoading)
   const isExplaining = usePuzzleStore((state) => state.isExplaining)
+  const language = usePuzzleStore((state) => state.language)
   const sourceIds = usePuzzleStore((state) => state.sourceIds)
   const targetIds = usePuzzleStore((state) => state.targetIds)
   const indentById = usePuzzleStore((state) => state.indentById)
@@ -194,7 +225,7 @@ export function PuzzleBoard() {
 
   return (
     <>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
         <section className={styles.board}>
           <div className={styles.boardTopRow}>
             <div>
@@ -236,6 +267,7 @@ export function PuzzleBoard() {
                       code={line.code}
                       explanation={line.explanation}
                       indent={0}
+                      language={language}
                       container="source"
                       incorrect={false}
                     />
@@ -261,6 +293,7 @@ export function PuzzleBoard() {
                       code={line.code}
                       explanation={line.explanation}
                       indent={indentById[line.id] ?? 0}
+                      language={language}
                       container="target"
                       incorrect={incorrectSet.has(line.id)}
                     />
