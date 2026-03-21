@@ -27,6 +27,7 @@ import { usePuzzleStore, isGapId } from '../../../features/puzzle/model/puzzle.s
 import styles from './PuzzleBoard.module.css'
 
 const INDENT_STEP = 24
+const MAX_INDENT = 8
 
 function computeSlotFromPointer(
   pointerY: number,
@@ -190,6 +191,7 @@ export function PuzzleBoard() {
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
   const [activeDragWidth, setActiveDragWidth] = useState<number | null>(null)
   const [dropPreviewSlot, setDropPreviewSlot] = useState<number | null>(null)
+  const [previewIndent, setPreviewIndent] = useState<number | null>(null)
   const targetBodyRef = useRef<HTMLDivElement>(null)
   const sourceLaneRef = useRef<Element | null>(null)
 
@@ -208,6 +210,17 @@ export function PuzzleBoard() {
     return px >= r.left && px <= r.right && py >= r.top && py <= r.bottom
   }
 
+  function computeIndent(event: DragMoveEvent | DragEndEvent): number {
+    if (!targetBodyRef.current) return 0
+    const bodyRect = targetBodyRef.current.getBoundingClientRect()
+    const bodyPadding = parseFloat(getComputedStyle(targetBodyRef.current).paddingLeft) || 0
+    const contentLeft = bodyRect.left + bodyPadding
+    const initialLeft = event.active.rect.current.initial?.left ?? 0
+    const dropLeftEdge = initialLeft + event.delta.x
+    const rawIndent = (dropLeftEdge - contentLeft) / INDENT_STEP
+    return Math.max(0, Math.min(MAX_INDENT, Math.round(rawIndent)))
+  }
+
   function handleDragStart(event: DragStartEvent) {
     setActiveDragId(String(event.active.id))
     setActiveDragWidth(event.active.rect.current.initial?.width ?? null)
@@ -224,8 +237,12 @@ export function PuzzleBoard() {
     if (isPointInElement(x, y, targetLane)) {
       const slot = computeSlotFromPointer(y, targetBodyRef.current)
       setDropPreviewSlot((prev) => (prev === slot ? prev : slot))
+
+      const indent = computeIndent(event)
+      setPreviewIndent((prev) => (prev === indent ? prev : indent))
     } else {
       setDropPreviewSlot((prev) => (prev === null ? prev : null))
+      setPreviewIndent((prev) => (prev === null ? prev : null))
     }
   }
 
@@ -233,6 +250,7 @@ export function PuzzleBoard() {
     setActiveDragId(null)
     setActiveDragWidth(null)
     setDropPreviewSlot(null)
+    setPreviewIndent(null)
 
     const activeId = String(event.active.id)
     const { x, y } = getPointer(event)
@@ -254,14 +272,7 @@ export function PuzzleBoard() {
     if (overContainer === 'target' && targetBodyRef.current) {
       const slotIndex = computeSlotFromPointer(y, targetBodyRef.current)
       moveLine(activeId, 'target', slotIndex)
-
-      const bodyRect = targetBodyRef.current.getBoundingClientRect()
-      const bodyPadding = parseFloat(getComputedStyle(targetBodyRef.current).paddingLeft) || 0
-      const contentLeft = bodyRect.left + bodyPadding
-      const initialLeft = event.active.rect.current.initial?.left ?? 0
-      const dropLeftEdge = initialLeft + event.delta.x
-      const indent = Math.round((dropLeftEdge - contentLeft) / INDENT_STEP)
-      setIndent(activeId, indent)
+      setIndent(activeId, computeIndent(event))
     } else {
       moveLine(activeId, 'source')
     }
@@ -323,6 +334,7 @@ export function PuzzleBoard() {
           setActiveDragId(null)
           setActiveDragWidth(null)
           setDropPreviewSlot(null)
+          setPreviewIndent(null)
         }}
         onDragEnd={handleDragEnd}
       >
@@ -374,6 +386,16 @@ export function PuzzleBoard() {
 
             <SortableContext items={targetBlockIds} strategy={verticalListSortingStrategy}>
               <Lane laneId="target" title="Solution Area" subtitle="Drop and arrange lines here" bodyRef={targetBodyRef}>
+                {isDragActive ? (
+                  <div className={styles.indentRuler} aria-hidden="true">
+                    {Array.from({ length: MAX_INDENT + 1 }, (_, i) => (
+                      <div
+                        key={i}
+                        className={`${styles.indentTick} ${previewIndent === i ? styles.indentTickActive : ''}`}
+                      />
+                    ))}
+                  </div>
+                ) : null}
                 {targetIds.map((id, slotIndex) => {
                   if (isGapId(id)) {
                     return (

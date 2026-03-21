@@ -305,7 +305,29 @@ After implementing the slot model, two usability gaps remained: (1) no visual fe
 ### Tradeoff
 Same-slot drops are now a no-op (block snaps back) which is the expected behavior. Swap feedback makes the interaction discoverable.
 
-## 18) High-Impact Decisions Summary
+## 18) Horizontal Indent Snapping and Visual Feedback
+
+### Challenge
+The spec requires "a visual and a snapping effect for both horizontal and vertical positions." Vertical snapping was handled by the fixed-slot system (highlighted slots), but there was no horizontal feedback — users couldn't see which indent level they'd get until after dropping.
+
+### Decisions and Iterations
+
+**First attempt (not right):** Built a full snap modifier on the DragOverlay that locked the block's X position to indent grid columns, plus full-height vertical guide lines across the target lane. The guide lines were visually noisy and the snap modifier felt over-engineered.
+
+**Second attempt (not right):** Replaced guide lines with small indent-tick rectangles (ruler), but cached the target lane position at drag start. When the ruler element appeared during drag (changing the layout), the cached position became stale, breaking indentation — all blocks landed at wrong indent levels.
+
+**Final decision:** Keep the indent ruler (a row of small rectangles, one per indent level, appearing during drag) with fresh position computation on every drag move and drop. The active indent level highlights as the user drags left/right. No snap modifier — the overlay follows the cursor freely, and indent rounds to the nearest discrete level on drop.
+
+### What Was Implemented
+- `previewIndent` state tracks the indent level during drag.
+- `computeIndent` computes indent from fresh DOM measurements (no caching).
+- Indent ruler rendered at the top of the target lane during drag: 9 small rectangles (indent 0–8), the active one highlighted blue.
+- On drop, indent snaps to the nearest level via `Math.round`.
+
+### Tradeoff
+The dragged block doesn't visually snap during movement (follows cursor freely), but the ruler clearly communicates which indent level will be applied. Fresh DOM reads on every frame are slightly more expensive than caching, but avoid stale-layout bugs.
+
+## 19) High-Impact Decisions Summary
 
 - Progressive commit discipline over large one-shot changes.
 - Modular architecture over ad hoc coupling.
@@ -320,8 +342,9 @@ Same-slot drops are now a no-op (block snaps back) which is the expected behavio
 - Fixed-slot model (N visible positions) over free-form list for unrestricted placement order.
 - Visible dashed gap slots over invisible/hidden gaps for clear spatial affordance.
 - Drop-target highlighting on both gaps and filled blocks for discoverable swap interaction.
+- Indent ruler with per-level tick marks over snap modifier for horizontal feedback (simpler, avoids cached-layout bugs).
 
-## 19) Open Follow-Ups
+## 20) Open Follow-Ups
 
 - Resolve remaining lint issues in puzzle store strings/escaping.
 - Optional: add automated tests around validation, hint cooldown, and history transitions.
