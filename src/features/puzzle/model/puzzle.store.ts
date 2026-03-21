@@ -256,7 +256,10 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         targetSlot: number | null
       }
 
-      const options: HintOption[] = []
+      /** Wrong slot or still in bank — fix order/placement before indentation */
+      const placementHints: HintOption[] = []
+      /** Only when every placed line is in the correct slot */
+      const indentHints: HintOption[] = []
 
       for (let slot = 0; slot < state.targetIds.length; slot += 1) {
         const id = state.targetIds[slot]
@@ -268,7 +271,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         const correctSlot = expected.findIndex((line) => line.id === id)
         if (correctSlot >= 0 && correctSlot !== slot) {
           const dir = correctSlot < slot ? 'up' as const : 'down' as const
-          options.push({
+          placementHints.push({
             lineId: placed.id,
             message: `Move "${placed.code.trim()}" ${dir} in the solution.`,
             direction: dir,
@@ -283,7 +286,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         if (currentIndent !== expectedLine.targetIndent) {
           const indentDir = currentIndent < expectedLine.targetIndent ? 'right' as const : 'left' as const
           const label = indentDir === 'right' ? 'Increase' : 'Decrease'
-          options.push({
+          indentHints.push({
             lineId: placed.id,
             message: `${label} indentation for "${placed.code.trim()}".`,
             direction: indentDir,
@@ -295,7 +298,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
       for (const line of expected) {
         if (!placedIds.includes(line.id)) {
           const correctSlot = expected.indexOf(line)
-          options.push({
+          placementHints.push({
             lineId: line.id,
             message: `Drag "${line.code.trim()}" from Code Bank into the solution area.`,
             direction: 'right',
@@ -303,6 +306,8 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
           })
         }
       }
+
+      const options = placementHints.length > 0 ? placementHints : indentHints
 
       if (options.length === 0) {
         return {

@@ -369,7 +369,7 @@ The original hint system was text-only: clicking "Hint" showed a message like "M
 
 ### What Was Implemented
 - `hintLineId`, `hintDirection`, `hintTargetSlot` in puzzle state.
-- `requestHint` collects all errors (wrong slot, wrong indent, missing) into an array and picks one randomly via `Math.random()`.
+- `requestHint` splits issues into **placement** (wrong slot, line still in Code Bank) vs **indent-only** (correct slot, wrong indent). It only considers indent hints when there are no placement issues — order/position must be fixed before indentation hints make sense. Within the active tier, one hint is chosen at random.
 - `HintArrowOverlay` component: measures source block and target slot DOM positions, draws a quadratic bezier SVG path with `markerEnd` arrowhead. Curves outward for same-lane arrows (up/down in solution), upward for cross-lane arrows (Code Bank → Solution Area). Re-measures on scroll/resize.
 - Target slot highlighted via `.gapSlotHintTarget` (green pulsing dashed border).
 - Source block highlighted via `.cardHinted` (green pulsing glow).
