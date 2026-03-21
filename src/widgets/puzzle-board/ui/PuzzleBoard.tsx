@@ -7,6 +7,7 @@ import {
   type DragEndEvent,
   type DragMoveEvent,
   PointerSensor,
+  useDraggable,
   useDroppable,
   pointerWithin,
   useSensor,
@@ -75,12 +76,91 @@ function useMonacoColorize(code: string, language: string): string {
 
 function SortableBlock({
   id,
+  code,
+  explanation,
+  language,
+  isHinted,
+  tooltipOpen,
+  onToggleTooltip,
+}: {
+  id: string
+  code: string
+  explanation: string
+  language: string
+  isHinted?: boolean
+  tooltipOpen: boolean
+  onToggleTooltip: (id: string) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    data: { container: 'source' as const },
+    transition: { duration: 250, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' },
+  })
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const highlightedCode = useMonacoColorize(code, language)
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0 : 1,
+  }
+
+  return (
+    <article
+      ref={setNodeRef}
+      style={style}
+      data-block-id={id}
+      className={`${styles.card} ${isDragging ? styles.cardDragging : ''} ${isHinted ? styles.cardHinted : ''}`}
+      {...attributes}
+      {...listeners}
+    >
+      <div className={styles.blockActions}>
+        <button
+          ref={btnRef}
+          className={styles.infoButton}
+          type="button"
+          aria-label="Show explanation for this line"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation()
+            if (!tooltipOpen && btnRef.current) {
+              const rect = btnRef.current.getBoundingClientRect()
+              setTooltipPos({ top: rect.bottom + 6, left: rect.right })
+            }
+            onToggleTooltip(id)
+          }}
+        >
+          ?
+        </button>
+      </div>
+
+      {tooltipOpen && tooltipPos ? (
+        <div
+          className={styles.explanationTooltip}
+          style={{ top: tooltipPos.top, left: tooltipPos.left }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {explanation || 'Loading explanation...'}
+        </div>
+      ) : null}
+
+      <div className={styles.codeContainer}>
+        <pre className={styles.codeText}>
+          <code dangerouslySetInnerHTML={{ __html: highlightedCode || escapeHtml(code) }} />
+        </pre>
+      </div>
+    </article>
+  )
+}
+
+function DraggableBlock({
+  id,
   slotIndex,
   code,
   explanation,
   indent,
   language,
-  container,
   incorrect,
   isDropTarget,
   isHinted,
@@ -88,34 +168,28 @@ function SortableBlock({
   onToggleTooltip,
 }: {
   id: string
-  slotIndex?: number
+  slotIndex: number
   code: string
   explanation: string
   indent: number
   language: string
-  container: 'source' | 'target'
   incorrect: boolean
   isDropTarget?: boolean
   isHinted?: boolean
   tooltipOpen: boolean
   onToggleTooltip: (id: string) => void
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
-    data: { container },
-    transition: { duration: 250, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' },
+    data: { container: 'target' as const },
   })
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
   const highlightedCode = useMonacoColorize(code, language)
 
-  const adjustedTransform = container === 'source' ? transform : isDragging ? transform : null
-
   const style = {
-    transform: CSS.Transform.toString(adjustedTransform),
-    transition: container === 'source' ? transition : undefined,
-    marginLeft: container === 'target' ? `${indent * INDENT_STEP}px` : '0px',
-    width: container === 'target' ? `calc(100% - ${indent * INDENT_STEP}px)` : '100%',
+    marginLeft: `${indent * INDENT_STEP}px`,
+    width: `calc(100% - ${indent * INDENT_STEP}px)`,
     opacity: isDragging ? 0 : 1,
   }
 
@@ -468,7 +542,6 @@ export function PuzzleBoard() {
   const lineById = Object.fromEntries(lines.map((line) => [line.id, line]))
   const incorrectSet = new Set(incorrectIds)
   const activeLine = activeDragId ? lineById[activeDragId] : undefined
-  const targetBlockIds = targetIds.filter((id) => !isGapId(id))
   const isDragActive = activeDragId !== null
 
   return (
@@ -527,10 +600,7 @@ export function PuzzleBoard() {
                       id={line.id}
                       code={line.code}
                       explanation={line.explanation}
-                      indent={0}
                       language={language}
-                      container="source"
-                      incorrect={false}
                       tooltipOpen={openTooltipId === line.id}
                       onToggleTooltip={toggleTooltip}
                       isHinted={hintLineId === line.id}
@@ -540,7 +610,6 @@ export function PuzzleBoard() {
               </Lane>
             </SortableContext>
 
-            <SortableContext items={targetBlockIds} strategy={verticalListSortingStrategy}>
               <Lane laneId="target" title="Solution Area" subtitle="Drop and arrange lines here" bodyRef={targetBodyRef}>
                 {isDragActive ? (
                   <div className={styles.indentRuler} aria-hidden="true">
@@ -570,7 +639,7 @@ export function PuzzleBoard() {
                   const line = lineById[id]
                   if (!line) return null
                   return (
-                    <SortableBlock
+                    <DraggableBlock
                       key={line.id}
                       id={line.id}
                       slotIndex={slotIndex}
@@ -578,7 +647,6 @@ export function PuzzleBoard() {
                       explanation={line.explanation}
                       indent={indentById[line.id] ?? 0}
                       language={language}
-                      container="target"
                       incorrect={incorrectSet.has(line.id)}
                       isDropTarget={isDragActive && dropPreviewSlot === slotIndex}
                       isHinted={hintLineId === line.id}
@@ -588,7 +656,6 @@ export function PuzzleBoard() {
                   )
                 })}
               </Lane>
-            </SortableContext>
           </div>
         </section>
         <DragOverlay zIndex={2000} dropAnimation={null}>
