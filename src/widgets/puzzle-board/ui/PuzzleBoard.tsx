@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useRef, useState, type ReactNode } from 'react'
-import { loader } from '@monaco-editor/react'
+import { colorizeCache, colorize, toMonacoLanguage, escapeHtml } from '../../../shared/lib/monacoColorize'
 import {
   DndContext,
   DragOverlay,
@@ -54,49 +54,6 @@ function computeSlotFromPointer(
   return items[items.length - 1].slot
 }
 
-const colorizeCache = new Map<string, string>()
-
-const monacoReady = loader.init().then((monaco) => {
-  monaco.editor.defineTheme('puzzle-light', {
-    base: 'vs',
-    inherit: true,
-    rules: [
-      { token: 'keyword', foreground: '1f4bd8', fontStyle: 'bold' },
-      { token: 'type', foreground: '1f4bd8', fontStyle: 'bold' },
-      { token: 'string', foreground: 'bb2d2d' },
-      { token: 'string.escape', foreground: 'bb2d2d' },
-      { token: 'number', foreground: '0f766e' },
-      { token: 'number.float', foreground: '0f766e' },
-      { token: 'comment', foreground: '5f6d84', fontStyle: 'italic' },
-      { token: 'delimiter', foreground: '2b3348' },
-      { token: 'delimiter.parenthesis', foreground: '2b3348' },
-      { token: 'delimiter.bracket', foreground: '2b3348' },
-      { token: 'operator', foreground: '2b3348' },
-      { token: 'identifier', foreground: '3a4f8a' },
-      { token: 'variable', foreground: '3a4f8a' },
-    ],
-    colors: {
-      'editor.foreground': '#1d2538',
-      'editor.background': '#00000000',
-    },
-  })
-  monaco.editor.setTheme('puzzle-light')
-  return monaco
-})
-
-function toMonacoLanguage(language: string) {
-  switch (language.toLowerCase()) {
-    case 'c++':
-      return 'cpp'
-    default:
-      return language.toLowerCase()
-  }
-}
-
-function escapeHtml(text: string) {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
 function useMonacoColorize(code: string, language: string): string {
   const lang = toMonacoLanguage(language)
   const key = `${lang}:${code}`
@@ -107,11 +64,8 @@ function useMonacoColorize(code: string, language: string): string {
     if (cached) { setHtml(cached); return }
 
     let cancelled = false
-    monacoReady.then((monaco) => {
-      monaco.editor.colorize(code, lang, { tabSize: 2 }).then((result: string) => {
-        colorizeCache.set(key, result)
-        if (!cancelled) setHtml(result)
-      })
+    colorize(code, lang).then((result) => {
+      if (!cancelled) setHtml(result)
     })
     return () => { cancelled = true }
   }, [key, code, lang])
