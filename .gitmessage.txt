@@ -6,7 +6,11 @@
 # - <why this change is needed>
 #
 # AI usage:
-# - <what AI tool was used and how>
+# - One line only: the narrow part an assistant helped with (you own the project).
+# - Not a changelog — don't list every file. Example: "slot pick logic in PuzzleBoard"
+# - If you wrote it yourself: "none"
 #
 # Notes:
-# - <optional extra context>
+# - <optional>
+#
+# Do not add "Made-with" / tool footers — not needed.
