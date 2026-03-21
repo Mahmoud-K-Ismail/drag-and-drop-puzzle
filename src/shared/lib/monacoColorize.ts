@@ -1,42 +1,42 @@
-import { loader } from '@monaco-editor/react'
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let monacoInstance: any = null
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let initPromise: Promise<any> | null = null
 
 function getMonaco() {
   if (monacoInstance) return Promise.resolve(monacoInstance)
   if (initPromise) return initPromise
 
-  initPromise = loader.init().then((monaco) => {
-    monaco.editor.defineTheme('puzzle-light', {
-      base: 'vs',
-      inherit: true,
-      rules: [
-        { token: 'keyword', foreground: '1f4bd8', fontStyle: 'bold' },
-        { token: 'type', foreground: '1f4bd8', fontStyle: 'bold' },
-        { token: 'string', foreground: 'bb2d2d' },
-        { token: 'string.escape', foreground: 'bb2d2d' },
-        { token: 'number', foreground: '0f766e' },
-        { token: 'number.float', foreground: '0f766e' },
-        { token: 'comment', foreground: '5f6d84', fontStyle: 'italic' },
-        { token: 'delimiter', foreground: '2b3348' },
-        { token: 'delimiter.parenthesis', foreground: '2b3348' },
-        { token: 'delimiter.bracket', foreground: '2b3348' },
-        { token: 'operator', foreground: '2b3348' },
-        { token: 'identifier', foreground: '3a4f8a' },
-        { token: 'variable', foreground: '3a4f8a' },
-      ],
-      colors: {
-        'editor.foreground': '#1d2538',
-        'editor.background': '#00000000',
-      },
-    })
-    monaco.editor.setTheme('puzzle-light')
-    monacoInstance = monaco
-    return monaco
-  })
+  initPromise = import('@monaco-editor/react').then(({ loader }) =>
+    loader.init().then((monaco: any) => {
+      monaco.editor.defineTheme('puzzle-light', {
+        base: 'vs',
+        inherit: true,
+        rules: [
+          { token: 'keyword', foreground: '1f4bd8', fontStyle: 'bold' },
+          { token: 'type', foreground: '1f4bd8', fontStyle: 'bold' },
+          { token: 'string', foreground: 'bb2d2d' },
+          { token: 'string.escape', foreground: 'bb2d2d' },
+          { token: 'number', foreground: '0f766e' },
+          { token: 'number.float', foreground: '0f766e' },
+          { token: 'comment', foreground: '5f6d84', fontStyle: 'italic' },
+          { token: 'delimiter', foreground: '2b3348' },
+          { token: 'delimiter.parenthesis', foreground: '2b3348' },
+          { token: 'delimiter.bracket', foreground: '2b3348' },
+          { token: 'operator', foreground: '2b3348' },
+          { token: 'identifier', foreground: '3a4f8a' },
+          { token: 'variable', foreground: '3a4f8a' },
+        ],
+        colors: {
+          'editor.foreground': '#1d2538',
+          'editor.background': '#00000000',
+        },
+      })
+      monaco.editor.setTheme('puzzle-light')
+      monacoInstance = monaco
+      return monaco
+    }),
+  )
 
   return initPromise
 }
