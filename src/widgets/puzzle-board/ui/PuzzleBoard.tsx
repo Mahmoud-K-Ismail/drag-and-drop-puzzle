@@ -96,8 +96,6 @@ function SortableBlock({
     data: { container: 'source' as const },
     transition: { duration: 250, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' },
   })
-  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
-  const btnRef = useRef<HTMLButtonElement>(null)
   const highlightedCode = useMonacoColorize(code, language)
 
   const style = {
@@ -115,35 +113,28 @@ function SortableBlock({
       {...attributes}
       {...listeners}
     >
-      <div className={styles.blockActions}>
+      <div className={`${styles.blockActions} ${tooltipOpen ? styles.blockActionsActive : ''}`}>
         <button
-          ref={btnRef}
           className={styles.infoButton}
           type="button"
           aria-label="Show explanation for this line"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation()
-            if (!tooltipOpen && btnRef.current) {
-              const rect = btnRef.current.getBoundingClientRect()
-              setTooltipPos({ top: rect.bottom + 6, left: rect.right })
-            }
             onToggleTooltip(id)
           }}
         >
           ?
         </button>
+        {tooltipOpen ? (
+          <div
+            className={styles.explanationTooltip}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {explanation || 'Loading explanation...'}
+          </div>
+        ) : null}
       </div>
-
-      {tooltipOpen && tooltipPos ? (
-        <div
-          className={styles.explanationTooltip}
-          style={{ top: tooltipPos.top, left: tooltipPos.left }}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          {explanation || 'Loading explanation...'}
-        </div>
-      ) : null}
 
       <div className={styles.codeContainer}>
         <pre className={styles.codeText}>
@@ -183,8 +174,6 @@ function DraggableBlock({
     id,
     data: { container: 'target' as const },
   })
-  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
-  const btnRef = useRef<HTMLButtonElement>(null)
   const highlightedCode = useMonacoColorize(code, language)
 
   const style = {
@@ -203,35 +192,28 @@ function DraggableBlock({
       {...attributes}
       {...listeners}
     >
-      <div className={styles.blockActions}>
+      <div className={`${styles.blockActions} ${tooltipOpen ? styles.blockActionsActive : ''}`}>
         <button
-          ref={btnRef}
           className={styles.infoButton}
           type="button"
           aria-label="Show explanation for this line"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation()
-            if (!tooltipOpen && btnRef.current) {
-              const rect = btnRef.current.getBoundingClientRect()
-              setTooltipPos({ top: rect.bottom + 6, left: rect.right })
-            }
             onToggleTooltip(id)
           }}
         >
           ?
         </button>
+        {tooltipOpen ? (
+          <div
+            className={styles.explanationTooltip}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {explanation || 'Loading explanation...'}
+          </div>
+        ) : null}
       </div>
-
-      {tooltipOpen && tooltipPos ? (
-        <div
-          className={styles.explanationTooltip}
-          style={{ top: tooltipPos.top, left: tooltipPos.left }}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          {explanation || 'Loading explanation...'}
-        </div>
-      ) : null}
 
       <div className={styles.codeContainer}>
         <pre className={styles.codeText}>

@@ -214,7 +214,7 @@
   border-radius: 10px;
   background: #f8f9fc;
   box-shadow: 0 2px 5px rgba(31, 41, 55, 0.12);
-  overflow: hidden;
+  overflow: visible;
   cursor: grab;
   position: relative;
   touch-action: manipulation;
@@ -307,7 +307,8 @@
 }
 
 .card:hover .blockActions,
-.card:focus-within .blockActions {
+.card:focus-within .blockActions,
+.blockActionsActive {
   opacity: 1;
   pointer-events: auto;
 }
@@ -329,9 +330,12 @@
 }
 
 .explanationTooltip {
-  position: fixed;
+  position: absolute;
+  top: 100%;
+  right: 0;
   z-index: 2500;
   max-width: 280px;
+  margin-top: 6px;
   padding: 10px 12px;
   font-size: 0.82rem;
   cursor: default;
@@ -342,13 +346,12 @@
   border: 1px solid #a3e0c8;
   border-radius: 10px;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14);
-  transform: translateX(-100%);
   pointer-events: auto;
   animation: tooltipFadeIn 0.15s ease;
 }
 
 @keyframes tooltipFadeIn {
-  from { opacity: 0; transform: translateX(-100%) translateY(-4px); }
+  from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateX(-100%) translateY(0); }
 }
 
