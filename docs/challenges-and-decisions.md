@@ -350,28 +350,29 @@ The dragged block doesn't visually snap during movement (follows cursor freely),
 ### Challenge
 The original hint system was text-only: clicking "Hint" showed a message like "Move X up in the solution order," but the user had to visually scan the board to find which block X was. Additionally, the hint logic compared placed blocks sequentially (filtering out gaps) rather than checking each block's actual slot against its expected position, which could give misleading "move up/down" directions in the fixed-slot model.
 
-### Decision
-- Add `hintLineId` state to the store: when `requestHint` identifies a problematic line, it stores both the text hint and the block's ID.
-- Add `hintDirection` state (`'up' | 'down' | 'left' | 'right' | null`): a directional arrow is rendered on the hinted block as specified in the `hint_flow_v2.svg` design diagram (`calcDirectionArrows()` → `setHint({targetId, arrows})` → "show direction arrows").
-- The referenced block gets a pulsing green border (`cardHinted`) with a bouncing arrow badge showing where to move it (up/down for order, left/right for indentation, right for "drag into solution").
-- Auto-dismisses after 8 seconds or on the next user action (move, indent, undo, redo).
-- The hinted block scrolls into view automatically.
-- The hint text bar is clickable to dismiss early.
-- Refactored `requestHint` to be slot-aware: iterates `targetIds` by slot index and compares each placed block's slot against its correct position.
+### Decisions and Iterations
+
+**First attempt (small badge arrows):** Added `hintDirection` and rendered small 28px green circle badges with Unicode arrows (↑↓←→) positioned at the edge of the hinted block. These were barely visible against the green glow and didn't convey *where* the block should move to — only the direction.
+
+**Final decision (SVG arrow overlay pointing to target slot):** Per the spec ("display arrows towards the direction that it needs to be moved to") and `hint_flow_v2.svg` (`calcDirectionArrows()` → `setHint({targetId, arrows})`), the hint now:
+1. Highlights the source block with a pulsing green border.
+2. Highlights the **target slot** (where the block should go) with a green pulsing dashed border.
+3. Draws an **SVG curved arrow** from the source block to the target slot — a fixed-position overlay with animated dashed stroke and arrowhead.
+4. Picks a **random** incorrect block (spec: "one random block that is placed incorrectly").
+5. **Disables** the Hint button for 10 seconds (spec: "hint button should then become inactive for 10 seconds").
 
 ### What Was Implemented
-- `hintLineId: string | null` and `hintDirection: 'up' | 'down' | 'left' | 'right' | null` in puzzle state.
-- `clearHint` action clears both.
-- `SortableBlock` accepts `isHinted` and `hintArrow` props:
-  - `isHinted` → `.cardHinted` class (pulsing green glow via `hintPulse` animation).
-  - `hintArrow` → `.hintArrow` badge (28px green circle with Unicode arrow glyph, positioned at the relevant edge of the block, bouncing in the indicated direction).
-- Arrow positioning: `.hintArrowUp` at top center, `.hintArrowDown` at bottom center, `.hintArrowLeft` at left center, `.hintArrowRight` at right center. Each has a dedicated bounce keyframe.
-- Auto-dismiss via `useEffect` timer (8s); auto-scroll via `scrollIntoView`.
-- Hint text bar shows "dismiss" label and is clickable.
-- `requestHint` sets direction for each hint type: order → `'up'`/`'down'`, indent → `'left'`/`'right'`, missing → `'right'`.
+- `hintLineId`, `hintDirection`, `hintTargetSlot` in puzzle state.
+- `requestHint` collects all errors (wrong slot, wrong indent, missing) into an array and picks one randomly via `Math.random()`.
+- `HintArrowOverlay` component: measures source block and target slot DOM positions, draws a quadratic bezier SVG path with `markerEnd` arrowhead. Curves outward for same-lane arrows (up/down in solution), upward for cross-lane arrows (Code Bank → Solution Area). Re-measures on scroll/resize.
+- Target slot highlighted via `.gapSlotHintTarget` (green pulsing dashed border).
+- Source block highlighted via `.cardHinted` (green pulsing glow).
+- SVG arrow animated via `hintDash` keyframe (flowing dash offset).
+- Hint button disabled during cooldown via `hintOnCooldown` state driven by `hintCooldownUntil` timer.
+- Auto-dismiss after 8s; clickable hint text bar with "dismiss" label; auto-scroll to hinted block.
 
 ### Tradeoff
-The 8-second auto-dismiss balances "visible long enough to act on" against "doesn't clutter the UI." Arrow badges add visual noise but match the system design spec and make the required action immediately obvious without reading the text.
+The SVG overlay requires fresh DOM measurements and recomputes on scroll/resize, but makes the hint unmistakably clear — the user sees exactly which block to move and where. Random selection means repeated hints may show different blocks, which helps the user discover multiple issues.
 
 ## 21) Open Follow-Ups
 

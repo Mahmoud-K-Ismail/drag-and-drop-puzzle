@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import React, { useEffect, useRef, useState, type ReactNode } from 'react'
 import hljs from 'highlight.js/lib/core'
 import cpp from 'highlight.js/lib/languages/cpp'
 import java from 'highlight.js/lib/languages/java'
@@ -64,13 +64,6 @@ function toHighlightLanguage(language: string) {
   }
 }
 
-const ARROW_GLYPHS: Record<string, string> = {
-  up: '\u2191',
-  down: '\u2193',
-  left: '\u2190',
-  right: '\u2192',
-}
-
 function SortableBlock({
   id,
   slotIndex,
@@ -82,7 +75,6 @@ function SortableBlock({
   incorrect,
   isDropTarget,
   isHinted,
-  hintArrow,
 }: {
   id: string
   slotIndex?: number
@@ -94,7 +86,6 @@ function SortableBlock({
   incorrect: boolean
   isDropTarget?: boolean
   isHinted?: boolean
-  hintArrow?: 'up' | 'down' | 'left' | 'right' | null
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -128,11 +119,6 @@ function SortableBlock({
       {...attributes}
       {...listeners}
     >
-      {isHinted && hintArrow && (
-        <span className={`${styles.hintArrow} ${styles[`hintArrow${hintArrow[0].toUpperCase()}${hintArrow.slice(1)}`]}`} aria-hidden="true">
-          {ARROW_GLYPHS[hintArrow]}
-        </span>
-      )}
       <div className={styles.blockActions}>
         <button
           className={styles.infoButton}
@@ -185,6 +171,81 @@ function Lane({
   )
 }
 
+function HintArrowOverlay({
+  fromId,
+  targetSlot,
+  targetBodyRef,
+}: {
+  fromId: string
+  targetSlot: number
+  targetBodyRef: React.RefObject<HTMLDivElement | null>
+}) {
+  const [coords, setCoords] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
+
+  useEffect(() => {
+    function measure() {
+      const fromEl = document.querySelector(`[data-block-id="${fromId}"]`)
+      const toEl = targetBodyRef.current?.querySelector(`[data-slot-index="${targetSlot}"]`)
+      if (!fromEl || !toEl) { setCoords(null); return }
+
+      const from = fromEl.getBoundingClientRect()
+      const to = toEl.getBoundingClientRect()
+      setCoords({
+        x1: from.left + from.width / 2,
+        y1: from.top + from.height / 2,
+        x2: to.left + to.width / 2,
+        y2: to.top + to.height / 2,
+      })
+    }
+
+    measure()
+    window.addEventListener('scroll', measure, true)
+    window.addEventListener('resize', measure)
+    const raf = requestAnimationFrame(measure)
+    return () => {
+      window.removeEventListener('scroll', measure, true)
+      window.removeEventListener('resize', measure)
+      cancelAnimationFrame(raf)
+    }
+  }, [fromId, targetSlot, targetBodyRef])
+
+  if (!coords) return null
+
+  const { x1, y1, x2, y2 } = coords
+  const sameLane = Math.abs(x2 - x1) < 200
+
+  let cx: number
+  let cy: number
+  if (sameLane) {
+    cx = x1 + 80
+    cy = (y1 + y2) / 2
+  } else {
+    cx = (x1 + x2) / 2
+    cy = Math.min(y1, y2) - 30
+  }
+
+  const path = `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`
+
+  return (
+    <svg className={styles.hintArrowSvg} aria-hidden="true">
+      <defs>
+        <marker id="hint-arrowhead" markerWidth="12" markerHeight="10" refX="11" refY="5" orient="auto">
+          <polygon points="0 0, 12 5, 0 10" fill="#26b785" />
+        </marker>
+      </defs>
+      <path
+        d={path}
+        fill="none"
+        stroke="#26b785"
+        strokeWidth="3"
+        strokeDasharray="10 5"
+        markerEnd="url(#hint-arrowhead)"
+        className={styles.hintArrowPath}
+      />
+    </svg>
+  )
+}
+
 export function PuzzleBoard() {
   const lines = usePuzzleStore((state) => state.lines)
   const isLoading = usePuzzleStore((state) => state.isLoading)
@@ -196,7 +257,8 @@ export function PuzzleBoard() {
   const isSolved = usePuzzleStore((state) => state.isSolved)
   const hintMessage = usePuzzleStore((state) => state.hintMessage)
   const hintLineId = usePuzzleStore((state) => state.hintLineId)
-  const hintDirection = usePuzzleStore((state) => state.hintDirection)
+  const hintTargetSlot = usePuzzleStore((state) => state.hintTargetSlot)
+  const hintCooldownUntil = usePuzzleStore((state) => state.hintCooldownUntil)
   const pastCount = usePuzzleStore((state) => state.past.length)
   const futureCount = usePuzzleStore((state) => state.future.length)
   const moveLine = usePuzzleStore((state) => state.moveLine)
@@ -207,6 +269,7 @@ export function PuzzleBoard() {
   const clearHint = usePuzzleStore((state) => state.clearHint)
   const undo = usePuzzleStore((state) => state.undo)
   const redo = usePuzzleStore((state) => state.redo)
+  const [hintOnCooldown, setHintOnCooldown] = useState(false)
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
   const [activeDragWidth, setActiveDragWidth] = useState<number | null>(null)
   const [dropPreviewSlot, setDropPreviewSlot] = useState<number | null>(null)
@@ -304,6 +367,14 @@ export function PuzzleBoard() {
   }, [hintLineId, clearHint])
 
   useEffect(() => {
+    const now = Date.now()
+    if (hintCooldownUntil <= now) { setHintOnCooldown(false); return }
+    setHintOnCooldown(true)
+    const timer = setTimeout(() => setHintOnCooldown(false), hintCooldownUntil - now)
+    return () => clearTimeout(timer)
+  }, [hintCooldownUntil])
+
+  useEffect(() => {
     if (!hintLineId) return
     const el = document.querySelector(`[data-block-id="${hintLineId}"]`)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -381,7 +452,7 @@ export function PuzzleBoard() {
               <button className={`${styles.ghostButton} ${styles.redoButton}`} type="button" onClick={redo} disabled={futureCount === 0}>
                 Redo
               </button>
-              <button className={`${styles.ghostButton} ${styles.hintButton}`} type="button" onClick={requestHint}>
+              <button className={`${styles.ghostButton} ${styles.hintButton}`} type="button" onClick={requestHint} disabled={hintOnCooldown}>
                 Hint
               </button>
               <button className={styles.checkButton} type="button" onClick={checkSolution}>
@@ -415,7 +486,6 @@ export function PuzzleBoard() {
                       container="source"
                       incorrect={false}
                       isHinted={hintLineId === line.id}
-                      hintArrow={hintLineId === line.id ? hintDirection : null}
                     />
                   )
                 })}
@@ -435,16 +505,17 @@ export function PuzzleBoard() {
                   </div>
                 ) : null}
                 {targetIds.map((id, slotIndex) => {
+                  const isHintTarget = hintTargetSlot === slotIndex && hintLineId !== null
                   if (isGapId(id)) {
+                    let gapClass = styles.gapSlot
+                    if (isDragActive && dropPreviewSlot === slotIndex) gapClass = styles.gapSlotHovered
+                    else if (isHintTarget) gapClass = styles.gapSlotHintTarget
+
                     return (
                       <div
                         key={id}
                         data-slot-index={slotIndex}
-                        className={
-                          isDragActive && dropPreviewSlot === slotIndex
-                            ? styles.gapSlotHovered
-                            : styles.gapSlot
-                        }
+                        className={gapClass}
                       />
                     )
                   }
@@ -463,7 +534,6 @@ export function PuzzleBoard() {
                       incorrect={incorrectSet.has(line.id)}
                       isDropTarget={isDragActive && dropPreviewSlot === slotIndex}
                       isHinted={hintLineId === line.id}
-                      hintArrow={hintLineId === line.id ? hintDirection : null}
                     />
                   )
                 })}
@@ -493,6 +563,10 @@ export function PuzzleBoard() {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {hintLineId && hintTargetSlot !== null ? (
+        <HintArrowOverlay fromId={hintLineId} targetSlot={hintTargetSlot} targetBodyRef={targetBodyRef} />
+      ) : null}
 
       {isSolved ? (
         <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-label="Puzzle solved">

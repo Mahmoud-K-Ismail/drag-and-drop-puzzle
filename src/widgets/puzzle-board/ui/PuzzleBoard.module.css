@@ -255,69 +255,41 @@
   }
 }
 
-.hintArrow {
-  position: absolute;
-  z-index: 4;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: #26b785;
-  color: #fff;
-  font-size: 16px;
-  font-weight: 700;
-  display: grid;
-  place-items: center;
-  box-shadow: 0 2px 8px rgba(38, 183, 133, 0.4);
+.hintArrowSvg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
   pointer-events: none;
-  animation: arrowBounce 1s ease-in-out infinite;
+  z-index: 1900;
 }
 
-.hintArrowUp {
-  top: -14px;
-  left: 50%;
-  transform: translateX(-50%);
-  animation-name: arrowBounceUp;
+.hintArrowPath {
+  animation: hintDash 1s linear infinite;
 }
 
-.hintArrowDown {
-  bottom: -14px;
-  left: 50%;
-  transform: translateX(-50%);
-  animation-name: arrowBounceDown;
+@keyframes hintDash {
+  to {
+    stroke-dashoffset: -30;
+  }
 }
 
-.hintArrowLeft {
-  left: -14px;
-  top: 50%;
-  transform: translateY(-50%);
-  animation-name: arrowBounceLeft;
+.gapSlotHintTarget {
+  height: 36px;
+  border: 2.5px dashed #26b785;
+  border-radius: 8px;
+  background: rgba(38, 183, 133, 0.12);
+  box-shadow: 0 0 12px rgba(38, 183, 133, 0.3);
+  animation: hintTargetPulse 1.6s ease-in-out infinite;
 }
 
-.hintArrowRight {
-  right: -14px;
-  top: 50%;
-  transform: translateY(-50%);
-  animation-name: arrowBounceRight;
-}
-
-@keyframes arrowBounceUp {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(-5px); }
-}
-
-@keyframes arrowBounceDown {
-  0%, 100% { transform: translateX(-50%) translateY(0); }
-  50% { transform: translateX(-50%) translateY(5px); }
-}
-
-@keyframes arrowBounceLeft {
-  0%, 100% { transform: translateY(-50%) translateX(0); }
-  50% { transform: translateY(-50%) translateX(-5px); }
-}
-
-@keyframes arrowBounceRight {
-  0%, 100% { transform: translateY(-50%) translateX(0); }
-  50% { transform: translateY(-50%) translateX(5px); }
+@keyframes hintTargetPulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(38, 183, 133, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(38, 183, 133, 0.5);
+  }
 }
 
 .blockActions {
