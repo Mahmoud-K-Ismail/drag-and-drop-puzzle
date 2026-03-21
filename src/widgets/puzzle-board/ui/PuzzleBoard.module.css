@@ -133,6 +133,8 @@
 
 .lane[data-lane='target'] {
   background: #f0edb6;
+  /* Popovers are wider than the ? button; don't clip them at the lane edge */
+  overflow: visible;
 }
 
 .laneHeader {
@@ -298,9 +300,13 @@
   position: absolute;
   top: 5px;
   right: 5px;
+  /* Wider than the ? button so absolutely-positioned tooltip isn't
+     shrink-to-fit to ~20px (which caused a tall skinny column). */
+  min-width: 28px;
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease;
@@ -331,11 +337,15 @@
 
 .explanationTooltip {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 6px);
   right: 0;
   z-index: 2500;
-  max-width: 280px;
-  margin-top: 6px;
+  /* Explicit width: abspos shrink-to-fit used the ~20px-wide .blockActions
+     as containing block, forcing one-word columns. Anchor right, grow left. */
+  width: min(280px, calc(100vw - 40px));
+  min-width: 200px;
+  box-sizing: border-box;
+  margin-top: 0;
   padding: 10px 12px;
   font-size: 0.82rem;
   cursor: default;
@@ -347,12 +357,22 @@
   border-radius: 10px;
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.14);
   pointer-events: auto;
-  animation: tooltipFadeIn 0.15s ease;
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  animation: tooltipFadeIn 0.15s ease forwards;
 }
 
 @keyframes tooltipFadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateX(-100%) translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .codeContainer {
