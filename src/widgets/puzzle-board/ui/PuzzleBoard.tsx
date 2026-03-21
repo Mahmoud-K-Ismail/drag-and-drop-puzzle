@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, type ReactNode } from 'react'
+import React, { useEffect, useCallback, useRef, useState, type ReactNode } from 'react'
 import hljs from 'highlight.js/lib/core'
 import cpp from 'highlight.js/lib/languages/cpp'
 import java from 'highlight.js/lib/languages/java'
@@ -102,12 +102,35 @@ function SortableBlock({
     data: { container },
     transition: { duration: 250, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' },
   })
-  const [showExplanation, setShowExplanation] = useState(false)
+  const [showTooltip, setShowTooltip] = useState(false)
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
   const highlightLanguage = toHighlightLanguage(language)
   const highlightedCode = hljs.highlight(code, {
     language: hljs.getLanguage(highlightLanguage) ? highlightLanguage : 'plaintext',
     ignoreIllegals: true,
   }).value
+
+  const openTooltip = useCallback(() => {
+    if (!btnRef.current) return
+    const rect = btnRef.current.getBoundingClientRect()
+    setTooltipPos({ top: rect.bottom + 6, left: rect.right })
+    setShowTooltip(true)
+  }, [])
+
+  useEffect(() => {
+    if (!showTooltip) return
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        btnRef.current?.contains(e.target as Node) ||
+        tooltipRef.current?.contains(e.target as Node)
+      ) return
+      setShowTooltip(false)
+    }
+    document.addEventListener('pointerdown', handleClickOutside)
+    return () => document.removeEventListener('pointerdown', handleClickOutside)
+  }, [showTooltip])
 
   const adjustedTransform = container === 'source' ? transform : isDragging ? transform : null
 
@@ -131,20 +154,30 @@ function SortableBlock({
     >
       <div className={styles.blockActions}>
         <button
+          ref={btnRef}
           className={styles.infoButton}
           type="button"
           aria-label="Show explanation for this line"
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation()
-            setShowExplanation((current) => !current)
+            if (showTooltip) { setShowTooltip(false); return }
+            openTooltip()
           }}
         >
           ?
         </button>
       </div>
 
-      {showExplanation ? <p className={styles.explanation}>{explanation}</p> : null}
+      {showTooltip && tooltipPos ? (
+        <div
+          ref={tooltipRef}
+          className={styles.explanationTooltip}
+          style={{ top: tooltipPos.top, left: tooltipPos.left }}
+        >
+          {explanation || 'Loading explanation...'}
+        </div>
+      ) : null}
 
       <div className={styles.codeContainer}>
         <pre className={`${styles.codeText} hljs`}>
