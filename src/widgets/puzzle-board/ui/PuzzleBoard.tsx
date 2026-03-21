@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import Editor from '@monaco-editor/react'
 import {
   DndContext,
   type DragEndEvent,
@@ -20,23 +19,11 @@ import styles from './PuzzleBoard.module.css'
 
 const INDENT_STEP = 24
 
-function toMonacoLanguage(language: string) {
-  switch (language.toLowerCase()) {
-    case 'cpp':
-      return 'cpp'
-    case 'c++':
-      return 'cpp'
-    default:
-      return language.toLowerCase()
-  }
-}
-
 function SortableBlock({
   id,
   code,
   explanation,
   indent,
-  language,
   container,
   incorrect,
 }: {
@@ -44,18 +31,11 @@ function SortableBlock({
   code: string
   explanation: string
   indent: number
-  language: string
   container: 'source' | 'target'
   incorrect: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { container } })
   const [showExplanation, setShowExplanation] = useState(false)
-
-  const visualRows = code
-    .split('\n')
-    .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / 64)), 0)
-  const lineHeight = 21
-  const editorHeight = Math.min(96, Math.max(24, visualRows * lineHeight + 2))
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -91,32 +71,7 @@ function SortableBlock({
       {showExplanation ? <p className={styles.explanation}>{explanation}</p> : null}
 
       <div className={styles.codeContainer}>
-        <Editor
-          height={`${editorHeight}px`}
-          language={language}
-          value={code}
-          options={{
-            readOnly: true,
-            minimap: { enabled: false },
-            lineNumbers: 'off',
-            glyphMargin: false,
-            folding: false,
-            scrollBeyondLastLine: false,
-            overviewRulerBorder: false,
-            hideCursorInOverviewRuler: true,
-            scrollbar: {
-              vertical: 'hidden',
-              horizontal: 'auto',
-            },
-            padding: {
-              top: 0,
-              bottom: 0,
-            },
-            wordWrap: 'on',
-            fontSize: 15,
-            lineHeight,
-          }}
-        />
+        <pre className={styles.codeText}>{code}</pre>
       </div>
     </article>
   )
@@ -150,7 +105,6 @@ export function PuzzleBoard() {
   const lines = usePuzzleStore((state) => state.lines)
   const isLoading = usePuzzleStore((state) => state.isLoading)
   const isExplaining = usePuzzleStore((state) => state.isExplaining)
-  const language = usePuzzleStore((state) => state.language)
   const sourceIds = usePuzzleStore((state) => state.sourceIds)
   const targetIds = usePuzzleStore((state) => state.targetIds)
   const indentById = usePuzzleStore((state) => state.indentById)
@@ -236,7 +190,6 @@ export function PuzzleBoard() {
   }
 
   const lineById = Object.fromEntries(lines.map((line) => [line.id, line]))
-  const monacoLanguage = toMonacoLanguage(language)
   const incorrectSet = new Set(incorrectIds)
 
   return (
@@ -283,7 +236,6 @@ export function PuzzleBoard() {
                       code={line.code}
                       explanation={line.explanation}
                       indent={0}
-                      language={monacoLanguage}
                       container="source"
                       incorrect={false}
                     />
@@ -309,7 +261,6 @@ export function PuzzleBoard() {
                       code={line.code}
                       explanation={line.explanation}
                       indent={indentById[line.id] ?? 0}
-                      language={monacoLanguage}
                       container="target"
                       incorrect={incorrectSet.has(line.id)}
                     />
