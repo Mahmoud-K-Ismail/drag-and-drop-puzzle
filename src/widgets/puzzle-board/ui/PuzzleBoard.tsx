@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, type ReactNode } from 'react'
+import React, { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import hljs from 'highlight.js/lib/core'
 import cpp from 'highlight.js/lib/languages/cpp'
 import java from 'highlight.js/lib/languages/java'
@@ -74,6 +74,7 @@ function SortableBlock({
   container,
   incorrect,
   isDropTarget,
+  isHinted,
 }: {
   id: string
   slotIndex?: number
@@ -84,6 +85,7 @@ function SortableBlock({
   container: 'source' | 'target'
   incorrect: boolean
   isDropTarget?: boolean
+  isHinted?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -113,7 +115,7 @@ function SortableBlock({
       style={style}
       data-block-id={id}
       data-slot-index={slotIndex}
-      className={`${styles.card} ${isDragging ? styles.cardDragging : ''} ${incorrect ? styles.cardIncorrect : ''} ${isDropTarget ? styles.cardDropTarget : ''}`}
+      className={`${styles.card} ${isDragging ? styles.cardDragging : ''} ${incorrect ? styles.cardIncorrect : ''} ${isDropTarget ? styles.cardDropTarget : ''} ${isHinted ? styles.cardHinted : ''}`}
       {...attributes}
       {...listeners}
     >
@@ -179,6 +181,7 @@ export function PuzzleBoard() {
   const incorrectIds = usePuzzleStore((state) => state.incorrectIds)
   const isSolved = usePuzzleStore((state) => state.isSolved)
   const hintMessage = usePuzzleStore((state) => state.hintMessage)
+  const hintLineId = usePuzzleStore((state) => state.hintLineId)
   const pastCount = usePuzzleStore((state) => state.past.length)
   const futureCount = usePuzzleStore((state) => state.future.length)
   const moveLine = usePuzzleStore((state) => state.moveLine)
@@ -186,6 +189,7 @@ export function PuzzleBoard() {
   const checkSolution = usePuzzleStore((state) => state.checkSolution)
   const dismissSolved = usePuzzleStore((state) => state.dismissSolved)
   const requestHint = usePuzzleStore((state) => state.requestHint)
+  const clearHint = usePuzzleStore((state) => state.clearHint)
   const undo = usePuzzleStore((state) => state.undo)
   const redo = usePuzzleStore((state) => state.redo)
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
@@ -279,6 +283,18 @@ export function PuzzleBoard() {
   }
 
   useEffect(() => {
+    if (!hintLineId) return
+    const timer = setTimeout(clearHint, 8000)
+    return () => clearTimeout(timer)
+  }, [hintLineId, clearHint])
+
+  useEffect(() => {
+    if (!hintLineId) return
+    const el = document.querySelector(`[data-block-id="${hintLineId}"]`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [hintLineId])
+
+  useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       const isMeta = event.metaKey || event.ctrlKey
 
@@ -358,7 +374,12 @@ export function PuzzleBoard() {
               </button>
             </div>
           </div>
-          {hintMessage ? <p className={styles.hintText}>{hintMessage}</p> : null}
+          {hintMessage ? (
+            <p className={styles.hintText} onClick={clearHint} role="status">
+              {hintMessage}
+              <span className={styles.hintDismiss}>dismiss</span>
+            </p>
+          ) : null}
 
           <div className={styles.lanesGrid}>
             <SortableContext items={sourceIds} strategy={verticalListSortingStrategy}>
@@ -378,6 +399,7 @@ export function PuzzleBoard() {
                       language={language}
                       container="source"
                       incorrect={false}
+                      isHinted={hintLineId === line.id}
                     />
                   )
                 })}
@@ -424,6 +446,7 @@ export function PuzzleBoard() {
                       container="target"
                       incorrect={incorrectSet.has(line.id)}
                       isDropTarget={isDragActive && dropPreviewSlot === slotIndex}
+                      isHinted={hintLineId === line.id}
                     />
                   )
                 })}

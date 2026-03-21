@@ -90,6 +90,20 @@
   border-radius: 10px;
   padding: 8px 10px;
   font-size: 0.84rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.hintDismiss {
+  font-size: 0.72rem;
+  color: #77cda6;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
 }
 
 .lanesGrid {
@@ -224,6 +238,21 @@
 .cardDropTarget {
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4), 0 0 12px rgba(59, 130, 246, 0.2);
+}
+
+.cardHinted {
+  border-color: #26b785;
+  box-shadow: 0 0 0 2px rgba(38, 183, 133, 0.45), 0 0 14px rgba(38, 183, 133, 0.25);
+  animation: hintPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hintPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(38, 183, 133, 0.45), 0 0 14px rgba(38, 183, 133, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 3px rgba(38, 183, 133, 0.6), 0 0 20px rgba(38, 183, 133, 0.35);
+  }
 }
 
 .blockActions {

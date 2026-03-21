@@ -343,8 +343,32 @@ The dragged block doesn't visually snap during movement (follows cursor freely),
 - Visible dashed gap slots over invisible/hidden gaps for clear spatial affordance.
 - Drop-target highlighting on both gaps and filled blocks for discoverable swap interaction.
 - Indent ruler with per-level tick marks over snap modifier for horizontal feedback (simpler, avoids cached-layout bugs).
+- Visual block highlighting on hint over text-only hints for faster block identification.
 
-## 20) Open Follow-Ups
+## 20) Hint System — Visual Highlighting and Slot-Aware Logic
+
+### Challenge
+The original hint system was text-only: clicking "Hint" showed a message like "Move X up in the solution order," but the user had to visually scan the board to find which block X was. Additionally, the hint logic compared placed blocks sequentially (filtering out gaps) rather than checking each block's actual slot against its expected position, which could give misleading "move up/down" directions in the fixed-slot model.
+
+### Decision
+- Add `hintLineId` state to the store: when `requestHint` identifies a problematic line, it stores both the text hint and the block's ID.
+- The referenced block gets a pulsing green border (`cardHinted`) that auto-dismisses after 8 seconds or on the next user action (move, indent, undo, redo).
+- The hinted block scrolls into view automatically.
+- The hint text bar is now clickable to dismiss early.
+- Refactored `requestHint` to be slot-aware: it iterates `targetIds` by slot index and compares each placed block's slot against its correct position in the expected order, rather than comparing sequentially after filtering gaps.
+
+### What Was Implemented
+- `hintLineId: string | null` in puzzle state, set by `requestHint`, cleared by `clearHint`, `moveLine`, `setIndent`, `undo`, `redo`, `setLines`.
+- `clearHint` action for explicit dismiss.
+- `SortableBlock` accepts `isHinted` prop; applies `.cardHinted` class (pulsing green glow via `hintPulse` animation).
+- Auto-dismiss via `useEffect` timer (8s); auto-scroll via `scrollIntoView`.
+- Hint text bar shows "dismiss" label and is clickable.
+- `requestHint` iterates slots for order errors first, then for indent errors, then checks for missing blocks — each time setting `hintLineId` to the relevant block.
+
+### Tradeoff
+The 8-second auto-dismiss balances "visible long enough to act on" against "doesn't clutter the UI." Slot-aware comparison is more correct for the fixed-slot model but means hints about order only make sense for blocks that are already placed.
+
+## 21) Open Follow-Ups
 
 - Resolve remaining lint issues in puzzle store strings/escaping.
 - Optional: add automated tests around validation, hint cooldown, and history transitions.
