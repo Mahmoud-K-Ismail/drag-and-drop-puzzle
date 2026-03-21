@@ -352,21 +352,26 @@ The original hint system was text-only: clicking "Hint" showed a message like "M
 
 ### Decision
 - Add `hintLineId` state to the store: when `requestHint` identifies a problematic line, it stores both the text hint and the block's ID.
-- The referenced block gets a pulsing green border (`cardHinted`) that auto-dismisses after 8 seconds or on the next user action (move, indent, undo, redo).
+- Add `hintDirection` state (`'up' | 'down' | 'left' | 'right' | null`): a directional arrow is rendered on the hinted block as specified in the `hint_flow_v2.svg` design diagram (`calcDirectionArrows()` → `setHint({targetId, arrows})` → "show direction arrows").
+- The referenced block gets a pulsing green border (`cardHinted`) with a bouncing arrow badge showing where to move it (up/down for order, left/right for indentation, right for "drag into solution").
+- Auto-dismisses after 8 seconds or on the next user action (move, indent, undo, redo).
 - The hinted block scrolls into view automatically.
-- The hint text bar is now clickable to dismiss early.
-- Refactored `requestHint` to be slot-aware: it iterates `targetIds` by slot index and compares each placed block's slot against its correct position in the expected order, rather than comparing sequentially after filtering gaps.
+- The hint text bar is clickable to dismiss early.
+- Refactored `requestHint` to be slot-aware: iterates `targetIds` by slot index and compares each placed block's slot against its correct position.
 
 ### What Was Implemented
-- `hintLineId: string | null` in puzzle state, set by `requestHint`, cleared by `clearHint`, `moveLine`, `setIndent`, `undo`, `redo`, `setLines`.
-- `clearHint` action for explicit dismiss.
-- `SortableBlock` accepts `isHinted` prop; applies `.cardHinted` class (pulsing green glow via `hintPulse` animation).
+- `hintLineId: string | null` and `hintDirection: 'up' | 'down' | 'left' | 'right' | null` in puzzle state.
+- `clearHint` action clears both.
+- `SortableBlock` accepts `isHinted` and `hintArrow` props:
+  - `isHinted` → `.cardHinted` class (pulsing green glow via `hintPulse` animation).
+  - `hintArrow` → `.hintArrow` badge (28px green circle with Unicode arrow glyph, positioned at the relevant edge of the block, bouncing in the indicated direction).
+- Arrow positioning: `.hintArrowUp` at top center, `.hintArrowDown` at bottom center, `.hintArrowLeft` at left center, `.hintArrowRight` at right center. Each has a dedicated bounce keyframe.
 - Auto-dismiss via `useEffect` timer (8s); auto-scroll via `scrollIntoView`.
 - Hint text bar shows "dismiss" label and is clickable.
-- `requestHint` iterates slots for order errors first, then for indent errors, then checks for missing blocks — each time setting `hintLineId` to the relevant block.
+- `requestHint` sets direction for each hint type: order → `'up'`/`'down'`, indent → `'left'`/`'right'`, missing → `'right'`.
 
 ### Tradeoff
-The 8-second auto-dismiss balances "visible long enough to act on" against "doesn't clutter the UI." Slot-aware comparison is more correct for the fixed-slot model but means hints about order only make sense for blocks that are already placed.
+The 8-second auto-dismiss balances "visible long enough to act on" against "doesn't clutter the UI." Arrow badges add visual noise but match the system design spec and make the required action immediately obvious without reading the text.
 
 ## 21) Open Follow-Ups
 

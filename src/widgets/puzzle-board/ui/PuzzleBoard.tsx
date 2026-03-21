@@ -64,6 +64,13 @@ function toHighlightLanguage(language: string) {
   }
 }
 
+const ARROW_GLYPHS: Record<string, string> = {
+  up: '\u2191',
+  down: '\u2193',
+  left: '\u2190',
+  right: '\u2192',
+}
+
 function SortableBlock({
   id,
   slotIndex,
@@ -75,6 +82,7 @@ function SortableBlock({
   incorrect,
   isDropTarget,
   isHinted,
+  hintArrow,
 }: {
   id: string
   slotIndex?: number
@@ -86,6 +94,7 @@ function SortableBlock({
   incorrect: boolean
   isDropTarget?: boolean
   isHinted?: boolean
+  hintArrow?: 'up' | 'down' | 'left' | 'right' | null
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -119,6 +128,11 @@ function SortableBlock({
       {...attributes}
       {...listeners}
     >
+      {isHinted && hintArrow && (
+        <span className={`${styles.hintArrow} ${styles[`hintArrow${hintArrow[0].toUpperCase()}${hintArrow.slice(1)}`]}`} aria-hidden="true">
+          {ARROW_GLYPHS[hintArrow]}
+        </span>
+      )}
       <div className={styles.blockActions}>
         <button
           className={styles.infoButton}
@@ -182,6 +196,7 @@ export function PuzzleBoard() {
   const isSolved = usePuzzleStore((state) => state.isSolved)
   const hintMessage = usePuzzleStore((state) => state.hintMessage)
   const hintLineId = usePuzzleStore((state) => state.hintLineId)
+  const hintDirection = usePuzzleStore((state) => state.hintDirection)
   const pastCount = usePuzzleStore((state) => state.past.length)
   const futureCount = usePuzzleStore((state) => state.future.length)
   const moveLine = usePuzzleStore((state) => state.moveLine)
@@ -400,6 +415,7 @@ export function PuzzleBoard() {
                       container="source"
                       incorrect={false}
                       isHinted={hintLineId === line.id}
+                      hintArrow={hintLineId === line.id ? hintDirection : null}
                     />
                   )
                 })}
@@ -447,6 +463,7 @@ export function PuzzleBoard() {
                       incorrect={incorrectSet.has(line.id)}
                       isDropTarget={isDragActive && dropPreviewSlot === slotIndex}
                       isHinted={hintLineId === line.id}
+                      hintArrow={hintLineId === line.id ? hintDirection : null}
                     />
                   )
                 })}

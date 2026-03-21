@@ -39,6 +39,7 @@ type PuzzleState = {
   isSolved: boolean
   hintMessage: string | null
   hintLineId: string | null
+  hintDirection: 'up' | 'down' | 'left' | 'right' | null
   hintCooldownUntil: number
   past: PuzzleSnapshot[]
   future: PuzzleSnapshot[]
@@ -96,6 +97,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
   isSolved: false,
   hintMessage: null,
   hintLineId: null,
+  hintDirection: null,
   hintCooldownUntil: 0,
   past: [],
   future: [],
@@ -113,6 +115,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
       isSolved: false,
       hintMessage: null,
       hintLineId: null,
+      hintDirection: null,
       hintCooldownUntil: 0,
       past: [],
       future: [],
@@ -156,6 +159,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
           isSolved: false,
           hintMessage: null,
           hintLineId: null,
+          hintDirection: null,
           past: pushPast(state.past, snapshot),
           future: [],
         }
@@ -187,6 +191,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         isSolved: false,
         hintMessage: null,
         hintLineId: null,
+        hintDirection: null,
         past: pushPast(state.past, snapshot),
         future: [],
       }
@@ -203,6 +208,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         isSolved: false,
         hintMessage: null,
         hintLineId: null,
+        hintDirection: null,
         past: pushPast(state.past, snapshotOf(state)),
         future: [],
         indentById: { ...state.indentById, [id]: nextIndent },
@@ -231,7 +237,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
       }
 
       if (state.lines.length === 0) {
-        return { ...state, hintMessage: 'Generate a puzzle first to receive hints.', hintLineId: null }
+        return { ...state, hintMessage: 'Generate a puzzle first to receive hints.', hintLineId: null, hintDirection: null }
       }
 
       const expected = [...state.lines].sort((a, b) => a.targetLine - b.targetLine)
@@ -246,11 +252,12 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
 
         const correctSlot = expected.findIndex((line) => line.id === id)
         if (correctSlot >= 0 && correctSlot !== slot) {
-          const direction = correctSlot < slot ? 'up' : 'down'
+          const dir = correctSlot < slot ? 'up' : 'down'
           return {
             ...state,
-            hintMessage: `Move "${placed.code.trim()}" ${direction} in the solution.`,
+            hintMessage: `Move "${placed.code.trim()}" ${dir} in the solution.`,
             hintLineId: placed.id,
+            hintDirection: dir,
             hintCooldownUntil: now + 10_000,
           }
         }
@@ -268,11 +275,13 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
 
         const currentIndent = state.indentById[placed.id] ?? 0
         if (currentIndent !== expectedLine.targetIndent) {
-          const direction = currentIndent < expectedLine.targetIndent ? 'Increase' : 'Decrease'
+          const indentDir = currentIndent < expectedLine.targetIndent ? 'right' : 'left'
+          const label = indentDir === 'right' ? 'Increase' : 'Decrease'
           return {
             ...state,
-            hintMessage: `${direction} indentation for "${placed.code.trim()}".`,
+            hintMessage: `${label} indentation for "${placed.code.trim()}".`,
             hintLineId: placed.id,
+            hintDirection: indentDir,
             hintCooldownUntil: now + 10_000,
           }
         }
@@ -284,6 +293,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
           ...state,
           hintMessage: `Drag "${missing.code.trim()}" from Code Bank into the solution area.`,
           hintLineId: missing.id,
+          hintDirection: 'right',
           hintCooldownUntil: now + 10_000,
         }
       }
@@ -292,11 +302,12 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         ...state,
         hintMessage: 'Your structure looks correct. Use Check Solution to confirm.',
         hintLineId: null,
+        hintDirection: null,
         hintCooldownUntil: now + 10_000,
       }
     })
   },
-  clearHint: () => set({ hintMessage: null, hintLineId: null }),
+  clearHint: () => set({ hintMessage: null, hintLineId: null, hintDirection: null }),
   undo: () => {
     set((state) => {
       const previous = state.past.at(-1)
@@ -310,6 +321,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         isSolved: false,
         hintMessage: null,
         hintLineId: null,
+        hintDirection: null,
         past: state.past.slice(0, -1),
         future: [snapshotOf(state), ...state.future],
       }
@@ -328,6 +340,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         isSolved: false,
         hintMessage: null,
         hintLineId: null,
+        hintDirection: null,
         past: pushPast(state.past, snapshotOf(state)),
         future: state.future.slice(1),
       }
