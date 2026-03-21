@@ -158,6 +158,7 @@ function SortableBlock({
         <div
           className={styles.explanationTooltip}
           style={{ top: tooltipPos.top, left: tooltipPos.left }}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           {explanation || 'Loading explanation...'}
         </div>
