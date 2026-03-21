@@ -611,16 +611,14 @@ export function PuzzleBoard() {
             </SortableContext>
 
               <Lane laneId="target" title="Solution Area" subtitle="Drop and arrange lines here" bodyRef={targetBodyRef}>
-                {isDragActive ? (
-                  <div className={styles.indentRuler} aria-hidden="true">
-                    {Array.from({ length: MAX_INDENT + 1 }, (_, i) => (
-                      <div
-                        key={i}
-                        className={`${styles.indentTick} ${previewIndent === i ? styles.indentTickActive : ''}`}
-                      />
-                    ))}
-                  </div>
-                ) : null}
+                <div className={styles.indentRuler} aria-hidden="true">
+                  {Array.from({ length: MAX_INDENT + 1 }, (_, i) => (
+                    <div
+                      key={i}
+                      className={`${styles.indentTick} ${isDragActive && previewIndent === i ? styles.indentTickActive : ''}`}
+                    />
+                  ))}
+                </div>
                 {targetIds.map((id, slotIndex) => {
                   const isHintTarget = hintTargetSlot === slotIndex && hintLineId !== null
                   if (isGapId(id)) {
