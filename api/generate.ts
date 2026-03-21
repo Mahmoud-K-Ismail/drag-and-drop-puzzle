@@ -39,10 +39,10 @@ function stripInlineComments(line: string) {
     .trimEnd()
 }
 
-function estimateIndent(line: string) {
-  const leadingTabs = (line.match(/^\t+/)?.[0].length ?? 0) * 2
+function countLeadingWhitespace(line: string) {
+  const leadingTabs = (line.match(/^\t+/)?.[0].length ?? 0) * 4
   const leadingSpaces = line.match(/^ +/)?.[0].length ?? 0
-  return Math.floor((leadingTabs + leadingSpaces) / 2)
+  return leadingTabs + leadingSpaces
 }
 
 function stripCodeFences(code: string) {
@@ -72,34 +72,36 @@ function detectLanguageFromCode(codeText: string) {
 }
 
 function normalizeGeneratedPuzzle(codeText: string, selectedLanguage: string): GeneratedPuzzle {
-  const normalizedLines = stripCodeFences(codeText)
-    .split(/\r?\n/)
+  const rawLines = stripCodeFences(codeText).split(/\r?\n/)
+
+  const parsed = rawLines
     .map((piece) => {
-      const indentFromCode = estimateIndent(piece)
+      const rawSpaces = countLeadingWhitespace(piece)
       const cleanCode = stripInlineComments(piece).trimStart()
 
       if (cleanCode.length === 0 || cleanCode.startsWith('//') || cleanCode.startsWith('/*')) {
         return null
       }
 
-      return {
-        code: cleanCode,
-        targetIndent: indentFromCode,
-      }
+      return { code: cleanCode, rawSpaces }
     })
-    .filter((entry): entry is { code: string; targetIndent: number } => entry !== null)
+    .filter((entry): entry is { code: string; rawSpaces: number } => entry !== null)
     .slice(0, TARGET_MAX_LINES)
-    .map((entry, index) => ({
-      id: `line-${index + 1}`,
-      code: entry.code,
-      explanation: '',
-      targetLine: index,
-      targetIndent: entry.targetIndent,
-    }))
 
-  if (normalizedLines.length === 0) {
+  if (parsed.length === 0) {
     throw new Error('Model returned no usable code lines')
   }
+
+  const nonZeroIndents = parsed.map((e) => e.rawSpaces).filter((s) => s > 0)
+  const baseUnit = nonZeroIndents.length > 0 ? Math.min(...nonZeroIndents) : 1
+
+  const normalizedLines = parsed.map((entry, index) => ({
+    id: `line-${index + 1}`,
+    code: entry.code,
+    explanation: '',
+    targetLine: index,
+    targetIndent: Math.round(entry.rawSpaces / baseUnit),
+  }))
 
   const resolvedLanguage =
     selectedLanguage === 'auto' ? detectLanguageFromCode(codeText) : selectedLanguage

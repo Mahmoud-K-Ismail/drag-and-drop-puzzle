@@ -29,10 +29,12 @@ import styles from './PuzzleBoard.module.css'
 const INDENT_STEP = 24
 const MAX_INDENT = 8
 
+const SLOT_PROXIMITY_PX = 40
+
 function computeSlotFromPointer(
   pointerY: number,
   bodyEl: HTMLElement,
-): number {
+): number | null {
   const raw = Array.from(bodyEl.querySelectorAll<HTMLElement>('[data-slot-index]'))
   const items: Array<{ rect: DOMRect; slot: number }> = []
 
@@ -42,11 +44,19 @@ function computeSlotFromPointer(
     items.push({ rect, slot: Number(el.dataset.slotIndex) })
   }
 
+  if (items.length === 0) return null
+
+  const first = items[0].rect
+  const last = items[items.length - 1].rect
+  if (pointerY < first.top - SLOT_PROXIMITY_PX || pointerY > last.bottom + SLOT_PROXIMITY_PX) {
+    return null
+  }
+
   for (const { rect, slot } of items) {
     if (pointerY < rect.top + rect.height * 0.65) return slot
   }
 
-  return items.length > 0 ? items[items.length - 1].slot : 0
+  return items[items.length - 1].slot
 }
 
 hljs.registerLanguage('javascript', javascript)
@@ -318,10 +328,14 @@ export function PuzzleBoard() {
 
     if (isPointInElement(x, y, targetLane)) {
       const slot = computeSlotFromPointer(y, targetBodyRef.current)
-      setDropPreviewSlot((prev) => (prev === slot ? prev : slot))
-
-      const indent = computeIndent(event)
-      setPreviewIndent((prev) => (prev === indent ? prev : indent))
+      if (slot !== null) {
+        setDropPreviewSlot((prev) => (prev === slot ? prev : slot))
+        const indent = computeIndent(event)
+        setPreviewIndent((prev) => (prev === indent ? prev : indent))
+      } else {
+        setDropPreviewSlot((prev) => (prev === null ? prev : null))
+        setPreviewIndent((prev) => (prev === null ? prev : null))
+      }
     } else {
       setDropPreviewSlot((prev) => (prev === null ? prev : null))
       setPreviewIndent((prev) => (prev === null ? prev : null))
@@ -353,8 +367,10 @@ export function PuzzleBoard() {
 
     if (overContainer === 'target' && targetBodyRef.current) {
       const slotIndex = computeSlotFromPointer(y, targetBodyRef.current)
-      moveLine(activeId, 'target', slotIndex)
-      setIndent(activeId, computeIndent(event))
+      if (slotIndex !== null) {
+        moveLine(activeId, 'target', slotIndex)
+        setIndent(activeId, computeIndent(event))
+      }
     } else {
       moveLine(activeId, 'source')
     }

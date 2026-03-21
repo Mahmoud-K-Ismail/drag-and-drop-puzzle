@@ -374,7 +374,33 @@ The original hint system was text-only: clicking "Hint" showed a message like "M
 ### Tradeoff
 The SVG overlay requires fresh DOM measurements and recomputes on scroll/resize, but makes the hint unmistakably clear — the user sees exactly which block to move and where. Random selection means repeated hints may show different blocks, which helps the user discover multiple issues.
 
-## 21) Open Follow-Ups
+## 21) Indentation Mismatch — estimateIndent Dividing by 2
+
+### Challenge
+The `estimateIndent` function in `api/generate.ts` divided total leading whitespace by 2, assuming 2-space indent per level. Python uses 4 spaces, so a function body at 4 spaces was assigned `targetIndent: 2`. The UI (24px per indent step) required the user to drag to indent level 2 (48px) to match — but visually one indent level (24px) looked correct, causing puzzles to be unsolvable even with correct-looking placement.
+
+### Decision
+Auto-detect the indent unit from the generated code: find the smallest non-zero indentation across all lines and use that as the base unit. Each line's indent level = `Math.round(rawSpaces / baseUnit)`. This works for any language or editor tab width.
+
+### What Was Implemented
+- Replaced `estimateIndent(line)` with `countLeadingWhitespace(line)` (returns raw spaces; tabs count as 4 spaces).
+- `normalizeGeneratedPuzzle` collects raw whitespace for all lines, finds `baseUnit = Math.min(...nonZeroIndents)`, then divides each line's raw spaces by `baseUnit`.
+- Python 4-space indent → `baseUnit=4`, each body line → `targetIndent=1`. JS 2-space → `baseUnit=2`, each indent → `targetIndent=1`.
+
+## 22) Slot Detection Triggering Too Far From Blocks
+
+### Challenge
+`computeSlotFromPointer` always returned a slot — even when the pointer was far above or below all slot elements. This caused blocks to swap when the user was dragging in empty space within the target lane, far from any actual block.
+
+### Decision
+Add a proximity guard: if the pointer is more than 40px above the first slot or below the last slot, return `null` (no slot). Callers (`handleDragMove`, `handleDragEnd`) now skip slot-based logic when `null` is returned.
+
+### What Was Implemented
+- `computeSlotFromPointer` returns `number | null` instead of `number`.
+- Proximity check: `if (pointerY < first.top - 40 || pointerY > last.bottom + 40) return null`.
+- `handleDragMove` clears preview if no slot detected; `handleDragEnd` skips move if no slot.
+
+## 23) Open Follow-Ups
 
 - Resolve remaining lint issues in puzzle store strings/escaping.
 - Optional: add automated tests around validation, hint cooldown, and history transitions.
