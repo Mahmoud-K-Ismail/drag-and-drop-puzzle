@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Editor from '@monaco-editor/react'
 import {
   DndContext,
@@ -38,6 +38,7 @@ function SortableBlock({
   indent,
   language,
   container,
+  incorrect,
 }: {
   id: string
   code: string
@@ -45,12 +46,16 @@ function SortableBlock({
   indent: number
   language: string
   container: 'source' | 'target'
+  incorrect: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { container } })
   const [showExplanation, setShowExplanation] = useState(false)
 
-  const visualRows = Math.max(1, Math.ceil(code.length / 58))
-  const editorHeight = Math.min(126, 26 + visualRows * 22)
+  const visualRows = code
+    .split('\n')
+    .reduce((total, line) => total + Math.max(1, Math.ceil(line.length / 64)), 0)
+  const lineHeight = 21
+  const editorHeight = Math.min(96, Math.max(24, visualRows * lineHeight + 2))
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -64,7 +69,7 @@ function SortableBlock({
     <article
       ref={setNodeRef}
       style={style}
-      className={`${styles.card} ${isDragging ? styles.cardDragging : ''}`}
+      className={`${styles.card} ${isDragging ? styles.cardDragging : ''} ${incorrect ? styles.cardIncorrect : ''}`}
       {...attributes}
       {...listeners}
     >
@@ -103,9 +108,13 @@ function SortableBlock({
               vertical: 'hidden',
               horizontal: 'auto',
             },
+            padding: {
+              top: 0,
+              bottom: 0,
+            },
             wordWrap: 'on',
             fontSize: 15,
-            lineHeight: 22,
+            lineHeight,
           }}
         />
       </div>
@@ -145,8 +154,18 @@ export function PuzzleBoard() {
   const sourceIds = usePuzzleStore((state) => state.sourceIds)
   const targetIds = usePuzzleStore((state) => state.targetIds)
   const indentById = usePuzzleStore((state) => state.indentById)
+  const incorrectIds = usePuzzleStore((state) => state.incorrectIds)
+  const isSolved = usePuzzleStore((state) => state.isSolved)
+  const hintMessage = usePuzzleStore((state) => state.hintMessage)
+  const pastCount = usePuzzleStore((state) => state.past.length)
+  const futureCount = usePuzzleStore((state) => state.future.length)
   const moveLine = usePuzzleStore((state) => state.moveLine)
   const setIndent = usePuzzleStore((state) => state.setIndent)
+  const checkSolution = usePuzzleStore((state) => state.checkSolution)
+  const dismissSolved = usePuzzleStore((state) => state.dismissSolved)
+  const requestHint = usePuzzleStore((state) => state.requestHint)
+  const undo = usePuzzleStore((state) => state.undo)
+  const redo = usePuzzleStore((state) => state.redo)
 
   const sensors = useSensors(useSensor(PointerSensor))
 
@@ -175,6 +194,33 @@ export function PuzzleBoard() {
     }
   }
 
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const isMeta = event.metaKey || event.ctrlKey
+
+      if (!isMeta) {
+        return
+      }
+
+      const key = event.key.toLowerCase()
+
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault()
+        undo()
+        return
+      }
+
+      if ((key === 'z' && event.shiftKey) || key === 'y') {
+        event.preventDefault()
+        redo()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [redo, undo])
+
   if (isLoading) {
     return (
       <section className={styles.loadingWrap}>
@@ -191,65 +237,101 @@ export function PuzzleBoard() {
 
   const lineById = Object.fromEntries(lines.map((line) => [line.id, line]))
   const monacoLanguage = toMonacoLanguage(language)
+  const incorrectSet = new Set(incorrectIds)
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <section className={styles.board}>
-        <p className={styles.boardHint}>Drag blocks from left to right, then fine-tune indentation in the solution area.</p>
-        {isExplaining ? <p className={styles.boardHintSecondary}>Generating line explanations in the background...</p> : null}
+    <>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <section className={styles.board}>
+          <div className={styles.boardTopRow}>
+            <div>
+              <p className={styles.boardHint}>Drag blocks from left to right, then fine-tune indentation in the solution area.</p>
+              {isExplaining ? <p className={styles.boardHintSecondary}>Generating line explanations in the background...</p> : null}
+            </div>
+            <div className={styles.controlsRow}>
+              <button className={styles.ghostButton} type="button" onClick={undo} disabled={pastCount === 0}>
+                Undo
+              </button>
+              <button className={styles.ghostButton} type="button" onClick={redo} disabled={futureCount === 0}>
+                Redo
+              </button>
+              <button className={styles.ghostButton} type="button" onClick={requestHint}>
+                Hint
+              </button>
+              <button className={styles.checkButton} type="button" onClick={checkSolution}>
+                Check Solution
+              </button>
+            </div>
+          </div>
+          {hintMessage ? <p className={styles.hintText}>{hintMessage}</p> : null}
 
-        <div className={styles.lanesGrid}>
-          <SortableContext items={sourceIds} strategy={verticalListSortingStrategy}>
-            <Lane laneId="source" title="Code Bank" subtitle="Unplaced lines">
-              {sourceIds.length === 0 ? <p className={styles.emptyLane}>All lines are moved to the solution.</p> : null}
-              {sourceIds.map((id) => {
-                const line = lineById[id]
+          <div className={styles.lanesGrid}>
+            <SortableContext items={sourceIds} strategy={verticalListSortingStrategy}>
+              <Lane laneId="source" title="Code Bank" subtitle="Unplaced lines">
+                {sourceIds.length === 0 ? <p className={styles.emptyLane}>All lines are moved to the solution.</p> : null}
+                {sourceIds.map((id) => {
+                  const line = lineById[id]
 
-                if (!line) {
-                  return null
-                }
+                  if (!line) {
+                    return null
+                  }
 
-                return (
-                  <SortableBlock
-                    key={line.id}
-                    id={line.id}
-                    code={line.code}
-                    explanation={line.explanation}
-                    indent={0}
-                    language={monacoLanguage}
-                    container="source"
-                  />
-                )
-              })}
-            </Lane>
-          </SortableContext>
+                  return (
+                    <SortableBlock
+                      key={line.id}
+                      id={line.id}
+                      code={line.code}
+                      explanation={line.explanation}
+                      indent={0}
+                      language={monacoLanguage}
+                      container="source"
+                      incorrect={false}
+                    />
+                  )
+                })}
+              </Lane>
+            </SortableContext>
 
-          <SortableContext items={targetIds} strategy={verticalListSortingStrategy}>
-            <Lane laneId="target" title="Solution Area" subtitle="Drop and arrange lines here">
-              {targetIds.length === 0 ? <p className={styles.emptyLane}>Drop code lines here to build your answer.</p> : null}
-              {targetIds.map((id) => {
-                const line = lineById[id]
+            <SortableContext items={targetIds} strategy={verticalListSortingStrategy}>
+              <Lane laneId="target" title="Solution Area" subtitle="Drop and arrange lines here">
+                {targetIds.length === 0 ? <p className={styles.emptyLane}>Drop code lines here to build your answer.</p> : null}
+                {targetIds.map((id) => {
+                  const line = lineById[id]
 
-                if (!line) {
-                  return null
-                }
+                  if (!line) {
+                    return null
+                  }
 
-                return (
-                  <SortableBlock
-                    key={line.id}
-                    id={line.id}
-                    code={line.code}
-                    explanation={line.explanation}
-                    indent={indentById[line.id] ?? 0}
-                    language={monacoLanguage}
-                    container="target"
-                  />
-                )
-              })}
-            </Lane>
-          </SortableContext>
+                  return (
+                    <SortableBlock
+                      key={line.id}
+                      id={line.id}
+                      code={line.code}
+                      explanation={line.explanation}
+                      indent={indentById[line.id] ?? 0}
+                      language={monacoLanguage}
+                      container="target"
+                      incorrect={incorrectSet.has(line.id)}
+                    />
+                  )
+                })}
+              </Lane>
+            </SortableContext>
+          </div>
+        </section>
+      </DndContext>
+
+      {isSolved ? (
+        <div className={styles.modalBackdrop} role="dialog" aria-modal="true" aria-label="Puzzle solved">
+          <div className={styles.modalCard}>
+            <h3 className={styles.modalTitle}>Great work, puzzle solved.</h3>
+            <p className={styles.modalText}>Your line order and indentation are correct.</p>
+            <button type="button" className={styles.modalButton} onClick={dismissSolved}>
+              Continue
+            </button>
+          </div>
         </div>
-      </section>
-    </DndContext>
+      ) : null}
+    </>
   )
 }
