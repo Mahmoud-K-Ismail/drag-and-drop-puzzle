@@ -137,17 +137,25 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
       }
 
       if (activeContainer === overContainer) {
-        if (!overId || overId === activeId) {
+        if (overId === activeId) {
           return state
         }
 
-        const overIndex = fromList.indexOf(overId)
+        let reordered: string[]
 
-        if (overIndex < 0) {
-          return state
+        if (!overId) {
+          reordered = [...fromList]
+          reordered.splice(activeIndex, 1)
+          reordered.push(activeId)
+        } else {
+          const overIndex = fromList.indexOf(overId)
+
+          if (overIndex < 0) {
+            return state
+          }
+
+          reordered = arrayMove(fromList, activeIndex, overIndex)
         }
-
-        const reordered = arrayMove(fromList, activeIndex, overIndex)
 
         if (reordered.join('|') === fromList.join('|')) {
           return state

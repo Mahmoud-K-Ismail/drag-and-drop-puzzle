@@ -94,9 +94,9 @@
 
 .lanesGrid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.95fr) minmax(320px, 1.05fr);
+  grid-template-columns: 1fr 1fr;
   gap: 0;
-  align-items: start;
+  align-items: stretch;
   border: 1px solid #cfd3db;
   border-radius: 14px;
   overflow: hidden;
@@ -108,6 +108,8 @@
   border-radius: 0;
   overflow: hidden;
   min-height: 400px;
+  display: flex;
+  flex-direction: column;
 }
 
 .lane[data-lane='source'] {
@@ -142,6 +144,7 @@
   display: grid;
   gap: 8px;
   align-content: start;
+  flex: 1;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -159,7 +162,7 @@
   background: #f8f9fc;
   box-shadow: 0 2px 5px rgba(31, 41, 55, 0.12);
   overflow: hidden;
-  cursor: default;
+  cursor: grab;
   position: relative;
   touch-action: manipulation;
   -webkit-user-select: none;
@@ -171,9 +174,9 @@
 }
 
 .overlayCard {
-  width: min(560px, 78vw);
   opacity: 0.96;
   pointer-events: none;
+  cursor: grabbing;
 }
 
 .cardIncorrect {

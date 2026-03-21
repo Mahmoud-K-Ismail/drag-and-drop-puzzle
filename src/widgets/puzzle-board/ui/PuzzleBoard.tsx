@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import hljs from 'highlight.js/lib/core'
 import cpp from 'highlight.js/lib/languages/cpp'
 import java from 'highlight.js/lib/languages/java'
@@ -59,7 +59,11 @@ function SortableBlock({
   container: 'source' | 'target'
   incorrect: boolean
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, data: { container } })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    data: { container },
+    transition: { duration: 250, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' },
+  })
   const [showExplanation, setShowExplanation] = useState(false)
   const highlightLanguage = toHighlightLanguage(language)
   const highlightedCode = hljs.highlight(code, {
@@ -72,7 +76,7 @@ function SortableBlock({
     transition,
     marginLeft: container === 'target' ? `${indent * INDENT_STEP}px` : '0px',
     width: container === 'target' ? `calc(100% - ${indent * INDENT_STEP}px)` : '100%',
-    opacity: isDragging ? 0.85 : 1,
+    opacity: isDragging ? 0 : 1,
   }
 
   return (
@@ -113,11 +117,13 @@ function Lane({
   laneId,
   title,
   subtitle,
+  bodyRef,
   children,
 }: {
   laneId: 'source' | 'target'
   title: string
   subtitle: string
+  bodyRef?: React.RefObject<HTMLDivElement | null>
   children: ReactNode
 }) {
   const { setNodeRef } = useDroppable({ id: laneId })
@@ -128,7 +134,7 @@ function Lane({
         <h3 className={styles.laneTitle}>{title}</h3>
         <p className={styles.laneSubtitle}>{subtitle}</p>
       </header>
-      <div className={styles.laneBody}>{children}</div>
+      <div ref={bodyRef} className={styles.laneBody}>{children}</div>
     </section>
   )
 }
@@ -154,15 +160,23 @@ export function PuzzleBoard() {
   const undo = usePuzzleStore((state) => state.undo)
   const redo = usePuzzleStore((state) => state.redo)
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
+  const [activeDragWidth, setActiveDragWidth] = useState<number | null>(null)
+  const targetBodyRef = useRef<HTMLDivElement>(null)
 
-  const sensors = useSensors(useSensor(PointerSensor))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  )
 
   function handleDragStart(event: DragStartEvent) {
     setActiveDragId(String(event.active.id))
+    const rect = event.active.rect.current.initial
+    const width = rect?.width
+    setActiveDragWidth(width ?? null)
   }
 
   function handleDragEnd(event: DragEndEvent) {
     setActiveDragId(null)
+    setActiveDragWidth(null)
     const activeId = String(event.active.id)
     const overId = event.over ? String(event.over.id) : null
 
@@ -180,10 +194,14 @@ export function PuzzleBoard() {
 
     moveLine(activeId, overId === 'source' || overId === 'target' ? null : overId, overContainer)
 
-    if (activeContainer === 'target' || overContainer === 'target') {
-      const currentIndent = indentById[activeId] ?? 0
-      const nextIndent = currentIndent + Math.round(event.delta.x / INDENT_STEP)
-      setIndent(activeId, nextIndent)
+    if (overContainer === 'target' && targetBodyRef.current) {
+      const bodyRect = targetBodyRef.current.getBoundingClientRect()
+      const bodyPadding = parseFloat(getComputedStyle(targetBodyRef.current).paddingLeft) || 0
+      const contentLeft = bodyRect.left + bodyPadding
+      const initialLeft = event.active.rect.current.initial?.left ?? 0
+      const dropLeftEdge = initialLeft + event.delta.x
+      const indent = Math.round((dropLeftEdge - contentLeft) / INDENT_STEP)
+      setIndent(activeId, indent)
     }
   }
 
@@ -238,7 +256,10 @@ export function PuzzleBoard() {
         sensors={sensors}
         collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
-        onDragCancel={() => setActiveDragId(null)}
+        onDragCancel={() => {
+          setActiveDragId(null)
+          setActiveDragWidth(null)
+        }}
         onDragEnd={handleDragEnd}
       >
         <section className={styles.board}>
@@ -292,7 +313,7 @@ export function PuzzleBoard() {
             </SortableContext>
 
             <SortableContext items={targetIds} strategy={verticalListSortingStrategy}>
-              <Lane laneId="target" title="Solution Area" subtitle="Drop and arrange lines here">
+              <Lane laneId="target" title="Solution Area" subtitle="Drop and arrange lines here" bodyRef={targetBodyRef}>
                 {targetIds.length === 0 ? <p className={styles.emptyLane}>Drop code lines here to build your answer.</p> : null}
                 {targetIds.map((id) => {
                   const line = lineById[id]
@@ -318,10 +339,12 @@ export function PuzzleBoard() {
             </SortableContext>
           </div>
         </section>
-
-        <DragOverlay zIndex={2000}>
+        <DragOverlay zIndex={2000} dropAnimation={null}>
           {activeLine ? (
-            <article className={`${styles.card} ${styles.cardDragging} ${styles.overlayCard}`}>
+            <article
+              className={`${styles.card} ${styles.cardDragging} ${styles.overlayCard}`}
+              style={{ width: activeDragWidth ? `${activeDragWidth}px` : undefined }}
+            >
               <div className={styles.codeContainer}>
                 <pre className={`${styles.codeText} hljs`}>
                   <code
