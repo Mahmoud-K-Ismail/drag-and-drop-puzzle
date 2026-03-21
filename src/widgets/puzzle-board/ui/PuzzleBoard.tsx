@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import React, { useEffect, useRef, useState, type ReactNode } from 'react'
 import hljs from 'highlight.js/lib/core'
 import cpp from 'highlight.js/lib/languages/cpp'
 import java from 'highlight.js/lib/languages/java'
@@ -10,6 +10,7 @@ import {
   DragOverlay,
   type DragStartEvent,
   type DragEndEvent,
+  type DragMoveEvent,
   PointerSensor,
   useDroppable,
   pointerWithin,
@@ -22,10 +23,30 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { usePuzzleStore } from '../../../features/puzzle/model/puzzle.store'
+import { usePuzzleStore, isGapId } from '../../../features/puzzle/model/puzzle.store'
 import styles from './PuzzleBoard.module.css'
 
 const INDENT_STEP = 24
+
+function computeSlotFromPointer(
+  pointerY: number,
+  bodyEl: HTMLElement,
+): number {
+  const raw = Array.from(bodyEl.querySelectorAll<HTMLElement>('[data-slot-index]'))
+  const items: Array<{ rect: DOMRect; slot: number }> = []
+
+  for (const el of raw) {
+    const rect = el.getBoundingClientRect()
+    if (rect.height === 0) continue
+    items.push({ rect, slot: Number(el.dataset.slotIndex) })
+  }
+
+  for (const { rect, slot } of items) {
+    if (pointerY < rect.top + rect.height * 0.65) return slot
+  }
+
+  return items.length > 0 ? items[items.length - 1].slot : 0
+}
 
 hljs.registerLanguage('javascript', javascript)
 hljs.registerLanguage('typescript', typescript)
@@ -44,20 +65,24 @@ function toHighlightLanguage(language: string) {
 
 function SortableBlock({
   id,
+  slotIndex,
   code,
   explanation,
   indent,
   language,
   container,
   incorrect,
+  isDropTarget,
 }: {
   id: string
+  slotIndex?: number
   code: string
   explanation: string
   indent: number
   language: string
   container: 'source' | 'target'
   incorrect: boolean
+  isDropTarget?: boolean
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -71,9 +96,11 @@ function SortableBlock({
     ignoreIllegals: true,
   }).value
 
+  const adjustedTransform = container === 'source' ? transform : isDragging ? transform : null
+
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Transform.toString(adjustedTransform),
+    transition: container === 'source' ? transition : undefined,
     marginLeft: container === 'target' ? `${indent * INDENT_STEP}px` : '0px',
     width: container === 'target' ? `calc(100% - ${indent * INDENT_STEP}px)` : '100%',
     opacity: isDragging ? 0 : 1,
@@ -83,7 +110,9 @@ function SortableBlock({
     <article
       ref={setNodeRef}
       style={style}
-      className={`${styles.card} ${isDragging ? styles.cardDragging : ''} ${incorrect ? styles.cardIncorrect : ''}`}
+      data-block-id={id}
+      data-slot-index={slotIndex}
+      className={`${styles.card} ${isDragging ? styles.cardDragging : ''} ${incorrect ? styles.cardIncorrect : ''} ${isDropTarget ? styles.cardDropTarget : ''}`}
       {...attributes}
       {...listeners}
     >
@@ -142,7 +171,6 @@ function Lane({
 export function PuzzleBoard() {
   const lines = usePuzzleStore((state) => state.lines)
   const isLoading = usePuzzleStore((state) => state.isLoading)
-  const isExplaining = usePuzzleStore((state) => state.isExplaining)
   const language = usePuzzleStore((state) => state.language)
   const sourceIds = usePuzzleStore((state) => state.sourceIds)
   const targetIds = usePuzzleStore((state) => state.targetIds)
@@ -161,40 +189,72 @@ export function PuzzleBoard() {
   const redo = usePuzzleStore((state) => state.redo)
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
   const [activeDragWidth, setActiveDragWidth] = useState<number | null>(null)
+  const [dropPreviewSlot, setDropPreviewSlot] = useState<number | null>(null)
   const targetBodyRef = useRef<HTMLDivElement>(null)
+  const sourceLaneRef = useRef<Element | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
 
+  function getPointer(event: DragMoveEvent | DragEndEvent) {
+    const origin = event.activatorEvent as PointerEvent
+    return { x: origin.clientX + event.delta.x, y: origin.clientY + event.delta.y }
+  }
+
+  function isPointInElement(px: number, py: number, el: Element | null | undefined): boolean {
+    if (!el) return false
+    const r = el.getBoundingClientRect()
+    return px >= r.left && px <= r.right && py >= r.top && py <= r.bottom
+  }
+
   function handleDragStart(event: DragStartEvent) {
     setActiveDragId(String(event.active.id))
-    const rect = event.active.rect.current.initial
-    const width = rect?.width
-    setActiveDragWidth(width ?? null)
+    setActiveDragWidth(event.active.rect.current.initial?.width ?? null)
+    if (!sourceLaneRef.current) {
+      sourceLaneRef.current = document.querySelector('[data-lane="source"]')
+    }
+  }
+
+  function handleDragMove(event: DragMoveEvent) {
+    if (!targetBodyRef.current) return
+    const { x, y } = getPointer(event)
+    const targetLane = targetBodyRef.current.closest('[data-lane="target"]')
+
+    if (isPointInElement(x, y, targetLane)) {
+      const slot = computeSlotFromPointer(y, targetBodyRef.current)
+      setDropPreviewSlot((prev) => (prev === slot ? prev : slot))
+    } else {
+      setDropPreviewSlot((prev) => (prev === null ? prev : null))
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
     setActiveDragId(null)
     setActiveDragWidth(null)
-    const activeId = String(event.active.id)
-    const overId = event.over ? String(event.over.id) : null
+    setDropPreviewSlot(null)
 
-    if (!overId) {
-      return
+    const activeId = String(event.active.id)
+    const { x, y } = getPointer(event)
+    const targetLane = targetBodyRef.current?.closest('[data-lane="target"]')
+
+    let overContainer: 'source' | 'target' | null = null
+
+    if (isPointInElement(x, y, targetLane)) {
+      overContainer = 'target'
+    } else if (isPointInElement(x, y, sourceLaneRef.current)) {
+      overContainer = 'source'
+    } else if (event.over) {
+      const overId = String(event.over.id)
+      overContainer = overId === 'source' || sourceIds.includes(overId) ? 'source' : 'target'
     }
 
-    const activeContainer = sourceIds.includes(activeId) ? 'source' : 'target'
-    const overContainer: 'source' | 'target' =
-      overId === 'source' || overId === 'target'
-        ? overId
-        : sourceIds.includes(overId)
-          ? 'source'
-          : 'target'
-
-    moveLine(activeId, overId === 'source' || overId === 'target' ? null : overId, overContainer)
+    if (!overContainer) return
 
     if (overContainer === 'target' && targetBodyRef.current) {
+      const slotIndex = computeSlotFromPointer(y, targetBodyRef.current)
+      moveLine(activeId, 'target', slotIndex)
+
       const bodyRect = targetBodyRef.current.getBoundingClientRect()
       const bodyPadding = parseFloat(getComputedStyle(targetBodyRef.current).paddingLeft) || 0
       const contentLeft = bodyRect.left + bodyPadding
@@ -202,6 +262,8 @@ export function PuzzleBoard() {
       const dropLeftEdge = initialLeft + event.delta.x
       const indent = Math.round((dropLeftEdge - contentLeft) / INDENT_STEP)
       setIndent(activeId, indent)
+    } else {
+      moveLine(activeId, 'source')
     }
   }
 
@@ -209,9 +271,7 @@ export function PuzzleBoard() {
     function onKeyDown(event: KeyboardEvent) {
       const isMeta = event.metaKey || event.ctrlKey
 
-      if (!isMeta) {
-        return
-      }
+      if (!isMeta) return
 
       const key = event.key.toLowerCase()
 
@@ -249,6 +309,8 @@ export function PuzzleBoard() {
   const lineById = Object.fromEntries(lines.map((line) => [line.id, line]))
   const incorrectSet = new Set(incorrectIds)
   const activeLine = activeDragId ? lineById[activeDragId] : undefined
+  const targetBlockIds = targetIds.filter((id) => !isGapId(id))
+  const isDragActive = activeDragId !== null
 
   return (
     <>
@@ -256,9 +318,11 @@ export function PuzzleBoard() {
         sensors={sensors}
         collisionDetection={pointerWithin}
         onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
         onDragCancel={() => {
           setActiveDragId(null)
           setActiveDragWidth(null)
+          setDropPreviewSlot(null)
         }}
         onDragEnd={handleDragEnd}
       >
@@ -266,7 +330,6 @@ export function PuzzleBoard() {
           <div className={styles.boardTopRow}>
             <div>
               <p className={styles.boardHint}>Drag blocks from left to right, then fine-tune indentation in the solution area.</p>
-              {isExplaining ? <p className={styles.boardHintSecondary}>Generating line explanations in the background...</p> : null}
             </div>
             <div className={styles.controlsRow}>
               <button className={`${styles.ghostButton} ${styles.undoButton}`} type="button" onClick={undo} disabled={pastCount === 0}>
@@ -291,10 +354,7 @@ export function PuzzleBoard() {
                 {sourceIds.length === 0 ? <p className={styles.emptyLane}>All lines are moved to the solution.</p> : null}
                 {sourceIds.map((id) => {
                   const line = lineById[id]
-
-                  if (!line) {
-                    return null
-                  }
+                  if (!line) return null
 
                   return (
                     <SortableBlock
@@ -312,26 +372,36 @@ export function PuzzleBoard() {
               </Lane>
             </SortableContext>
 
-            <SortableContext items={targetIds} strategy={verticalListSortingStrategy}>
+            <SortableContext items={targetBlockIds} strategy={verticalListSortingStrategy}>
               <Lane laneId="target" title="Solution Area" subtitle="Drop and arrange lines here" bodyRef={targetBodyRef}>
-                {targetIds.length === 0 ? <p className={styles.emptyLane}>Drop code lines here to build your answer.</p> : null}
-                {targetIds.map((id) => {
-                  const line = lineById[id]
-
-                  if (!line) {
-                    return null
+                {targetIds.map((id, slotIndex) => {
+                  if (isGapId(id)) {
+                    return (
+                      <div
+                        key={id}
+                        data-slot-index={slotIndex}
+                        className={
+                          isDragActive && dropPreviewSlot === slotIndex
+                            ? styles.gapSlotHovered
+                            : styles.gapSlot
+                        }
+                      />
+                    )
                   }
-
+                  const line = lineById[id]
+                  if (!line) return null
                   return (
                     <SortableBlock
                       key={line.id}
                       id={line.id}
+                      slotIndex={slotIndex}
                       code={line.code}
                       explanation={line.explanation}
                       indent={indentById[line.id] ?? 0}
                       language={language}
                       container="target"
                       incorrect={incorrectSet.has(line.id)}
+                      isDropTarget={isDragActive && dropPreviewSlot === slotIndex}
                     />
                   )
                 })}

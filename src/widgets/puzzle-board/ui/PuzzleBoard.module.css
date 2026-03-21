@@ -156,6 +156,22 @@
   padding: 8px;
 }
 
+.gapSlot {
+  height: 36px;
+  border: 2px dashed rgba(100, 116, 139, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.25);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gapSlotHovered {
+  height: 36px;
+  border: 2px dashed #3b82f6;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+}
+
 .card {
   border: 1px solid #cfd2d9;
   border-radius: 10px;
@@ -182,6 +198,11 @@
 .cardIncorrect {
   border-color: #dc2626;
   box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.45);
+}
+
+.cardDropTarget {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4), 0 0 12px rgba(59, 130, 246, 0.2);
 }
 
 .blockActions {

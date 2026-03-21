@@ -1,6 +1,16 @@
 import { create } from 'zustand'
-import { arrayMove } from '@dnd-kit/sortable'
 import { validatePuzzle } from './validatePuzzle'
+
+let gapSeed = 0
+
+function createGapId() {
+  gapSeed += 1
+  return `gap-${Date.now()}-${gapSeed}`
+}
+
+export function isGapId(id: string) {
+  return id.startsWith('gap-')
+}
 
 export type PuzzleLine = {
   id: string
@@ -34,7 +44,7 @@ type PuzzleState = {
   error: string | null
   setLines: (lines: PuzzleLine[], language: string) => void
   setLineExplanations: (items: Array<{ id: string; explanation: string }>) => void
-  moveLine: (activeId: string, overId: string | null, overContainer: 'source' | 'target') => void
+  moveLine: (activeId: string, overContainer: 'source' | 'target', slotIndex?: number) => void
   setIndent: (id: string, indent: number) => void
   checkSolution: () => void
   dismissSolved: () => void
@@ -68,7 +78,6 @@ function snapshotOf(state: Pick<PuzzleState, 'sourceIds' | 'targetIds' | 'indent
 
 function pushPast(past: PuzzleSnapshot[], entry: PuzzleSnapshot) {
   const next = [...past, entry]
-
   return next.length > 100 ? next.slice(next.length - 100) : next
 }
 
@@ -90,12 +99,12 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
   error: null,
   setLines: (lines, language) => {
     const sourceIds = shuffleIds(lines.map((line) => line.id))
-    const indentById = Object.fromEntries(lines.map((line) => [line.id, 0]))
+    const targetIds = lines.map(() => createGapId())
     set({
       lines,
       sourceIds,
-      targetIds: [],
-      indentById,
+      targetIds,
+      indentById: {},
       language,
       incorrectIds: [],
       isSolved: false,
@@ -109,7 +118,6 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
   setLineExplanations: (items) => {
     set((state) => {
       const byId = new Map(items.map((item) => [item.id, item.explanation]))
-
       return {
         ...state,
         lines: state.lines.map((line) => ({
@@ -119,100 +127,69 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
       }
     })
   },
-  moveLine: (activeId, overId, overContainer) => {
+  moveLine: (activeId, overContainer, slotIndex) => {
     set((state) => {
       const inSource = state.sourceIds.includes(activeId)
-      const activeContainer = inSource ? 'source' : 'target'
+      const activeTargetIdx = state.targetIds.indexOf(activeId)
+      const inTarget = activeTargetIdx >= 0
 
-      if (!inSource && !state.targetIds.includes(activeId)) {
-        return state
+      if (!inSource && !inTarget) return state
+
+      const snapshot = snapshotOf(state)
+      const sourceNext = [...state.sourceIds]
+      const targetNext = [...state.targetIds]
+
+      if (overContainer === 'source') {
+        if (inSource) return state
+        targetNext[activeTargetIdx] = createGapId()
+        sourceNext.push(activeId)
+
+        return {
+          ...state,
+          sourceIds: sourceNext,
+          targetIds: targetNext,
+          incorrectIds: [],
+          isSolved: false,
+          hintMessage: null,
+          past: pushPast(state.past, snapshot),
+          future: [],
+        }
       }
 
-      const fromList = activeContainer === 'source' ? state.sourceIds : state.targetIds
-      const toList = overContainer === 'source' ? state.sourceIds : state.targetIds
-      const activeIndex = fromList.indexOf(activeId)
+      if (slotIndex === undefined || slotIndex < 0 || slotIndex >= targetNext.length) return state
 
-      if (activeIndex < 0) {
-        return state
-      }
+      const displaced = targetNext[slotIndex]
 
-      if (activeContainer === overContainer) {
-        if (overId === activeId) {
-          return state
+      if (inSource) {
+        const srcIdx = sourceNext.indexOf(activeId)
+        if (srcIdx < 0) return state
+        sourceNext.splice(srcIdx, 1)
+        targetNext[slotIndex] = activeId
+        if (displaced && !isGapId(displaced)) {
+          sourceNext.push(displaced)
         }
-
-        let reordered: string[]
-
-        if (!overId) {
-          reordered = [...fromList]
-          reordered.splice(activeIndex, 1)
-          reordered.push(activeId)
-        } else {
-          const overIndex = fromList.indexOf(overId)
-
-          if (overIndex < 0) {
-            return state
-          }
-
-          reordered = arrayMove(fromList, activeIndex, overIndex)
-        }
-
-        if (reordered.join('|') === fromList.join('|')) {
-          return state
-        }
-
-        return activeContainer === 'source'
-          ? {
-              ...state,
-              sourceIds: reordered,
-              incorrectIds: [],
-              isSolved: false,
-              hintMessage: null,
-              past: pushPast(state.past, snapshotOf(state)),
-              future: [],
-            }
-          : {
-              ...state,
-              targetIds: reordered,
-              incorrectIds: [],
-              isSolved: false,
-              hintMessage: null,
-              past: pushPast(state.past, snapshotOf(state)),
-              future: [],
-            }
-      }
-
-      const fromNext = [...fromList]
-      fromNext.splice(activeIndex, 1)
-
-      const toNext = [...toList]
-      const overIndex = overId ? toList.indexOf(overId) : -1
-
-      if (overIndex >= 0) {
-        toNext.splice(overIndex, 0, activeId)
       } else {
-        toNext.push(activeId)
+        if (activeTargetIdx === slotIndex) return state
+        targetNext[activeTargetIdx] = displaced
+        targetNext[slotIndex] = activeId
       }
 
       return {
         ...state,
+        sourceIds: sourceNext,
+        targetIds: targetNext,
         incorrectIds: [],
         isSolved: false,
         hintMessage: null,
-        past: pushPast(state.past, snapshotOf(state)),
+        past: pushPast(state.past, snapshot),
         future: [],
-        sourceIds: activeContainer === 'source' ? fromNext : toNext,
-        targetIds: activeContainer === 'source' ? toNext : fromNext,
       }
     })
   },
   setIndent: (id, indent) => {
     set((state) => {
       const nextIndent = Math.max(0, Math.min(8, indent))
-
-      if ((state.indentById[id] ?? 0) === nextIndent) {
-        return state
-      }
+      if ((state.indentById[id] ?? 0) === nextIndent) return state
 
       return {
         ...state,
@@ -221,10 +198,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         hintMessage: null,
         past: pushPast(state.past, snapshotOf(state)),
         future: [],
-        indentById: {
-          ...state.indentById,
-          [id]: nextIndent,
-        },
+        indentById: { ...state.indentById, [id]: nextIndent },
       }
     })
   },
@@ -236,12 +210,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         sourceIds: state.sourceIds,
         indentById: state.indentById,
       })
-
-      return {
-        ...state,
-        incorrectIds: result.incorrectIds,
-        isSolved: result.isSolved,
-      }
+      return { ...state, incorrectIds: result.incorrectIds, isSolved: result.isSolved }
     })
   },
   dismissSolved: () => set({ isSolved: false }),
@@ -251,79 +220,49 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
 
       if (now < state.hintCooldownUntil) {
         const secondsLeft = Math.max(1, Math.ceil((state.hintCooldownUntil - now) / 1000))
-        return {
-          ...state,
-          hintMessage: `Hint cooldown active. Try again in ${secondsLeft}s.`,
-        }
+        return { ...state, hintMessage: `Hint cooldown active. Try again in ${secondsLeft}s.` }
       }
 
       if (state.lines.length === 0) {
-        return {
-          ...state,
-          hintMessage: 'Generate a puzzle first to receive hints.',
-        }
+        return { ...state, hintMessage: 'Generate a puzzle first to receive hints.' }
       }
 
       const expected = [...state.lines].sort((a, b) => a.targetLine - b.targetLine)
+      const placedIds = state.targetIds.filter((id) => !isGapId(id))
 
-      for (let index = 0; index < state.targetIds.length; index += 1) {
-        const placedId = state.targetIds[index]
+      for (let index = 0; index < placedIds.length; index += 1) {
+        const placedId = placedIds[index]
         const placed = state.lines.find((line) => line.id === placedId)
         const expectedLine = expected[index]
-
-        if (!placed || !expectedLine) {
-          continue
-        }
+        if (!placed || !expectedLine) continue
 
         if (placed.id !== expectedLine.id) {
           const expectedIndex = expected.findIndex((line) => line.id === placed.id)
-
           if (expectedIndex >= 0) {
             const direction = expectedIndex < index ? 'up' : 'down'
-            return {
-              ...state,
-              hintMessage: `Move \"${placed.code.trim()}\" ${direction} in the solution order.`,
-              hintCooldownUntil: now + 10_000,
-            }
+            return { ...state, hintMessage: `Move "${placed.code.trim()}" ${direction} in the solution order.`, hintCooldownUntil: now + 10_000 }
           }
         }
 
         const currentIndent = state.indentById[placed.id] ?? 0
         if (currentIndent !== expectedLine.targetIndent) {
           const direction = currentIndent < expectedLine.targetIndent ? 'increase' : 'decrease'
-          return {
-            ...state,
-            hintMessage: `${direction === 'increase' ? 'Increase' : 'Decrease'} indentation for \"${placed.code.trim()}\".`,
-            hintCooldownUntil: now + 10_000,
-          }
+          return { ...state, hintMessage: `${direction === 'increase' ? 'Increase' : 'Decrease'} indentation for "${placed.code.trim()}".`, hintCooldownUntil: now + 10_000 }
         }
       }
 
-      const missing = expected.find((line) => !state.targetIds.includes(line.id))
-
+      const missing = expected.find((line) => !placedIds.includes(line.id))
       if (missing) {
-        return {
-          ...state,
-          hintMessage: `Drag \"${missing.code.trim()}\" from Code Bank into the solution area.`,
-          hintCooldownUntil: now + 10_000,
-        }
+        return { ...state, hintMessage: `Drag "${missing.code.trim()}" from Code Bank into the solution area.`, hintCooldownUntil: now + 10_000 }
       }
 
-      return {
-        ...state,
-        hintMessage: 'Your structure looks correct. Use Check Solution to confirm.',
-        hintCooldownUntil: now + 10_000,
-      }
+      return { ...state, hintMessage: 'Your structure looks correct. Use Check Solution to confirm.', hintCooldownUntil: now + 10_000 }
     })
   },
   undo: () => {
     set((state) => {
       const previous = state.past.at(-1)
-
-      if (!previous) {
-        return state
-      }
-
+      if (!previous) return state
       return {
         ...state,
         sourceIds: previous.sourceIds,
@@ -340,11 +279,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
   redo: () => {
     set((state) => {
       const next = state.future[0]
-
-      if (!next) {
-        return state
-      }
-
+      if (!next) return state
       return {
         ...state,
         sourceIds: next.sourceIds,

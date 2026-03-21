@@ -1,4 +1,5 @@
 import type { PuzzleLine } from './puzzle.store'
+import { isGapId } from './puzzle.store'
 
 type ValidationInput = {
   lines: PuzzleLine[]
@@ -50,8 +51,10 @@ function sameMultiset(a: number[], b: number[]) {
 export function validatePuzzle(input: ValidationInput): ValidationResult {
   const { lines, targetIds, sourceIds, indentById } = input
 
-  if (sourceIds.length > 0 || targetIds.length !== lines.length) {
-    return { incorrectIds: [...targetIds], isSolved: false }
+  const placedIds = targetIds.filter((id) => !isGapId(id))
+
+  if (sourceIds.length > 0 || placedIds.length !== lines.length) {
+    return { incorrectIds: [...placedIds], isSolved: false }
   }
 
   const lineById = Object.fromEntries(lines.map((line) => [line.id, line]))
@@ -69,8 +72,8 @@ export function validatePuzzle(input: ValidationInput): ValidationResult {
 
   const incorrect = new Set<string>()
 
-  for (let index = 0; index < targetIds.length; index += 1) {
-    const placedId = targetIds[index]
+  for (let index = 0; index < placedIds.length; index += 1) {
+    const placedId = placedIds[index]
     const placed = lineById[placedId]
     const expectedLine = expected[index]
 
@@ -92,7 +95,7 @@ export function validatePuzzle(input: ValidationInput): ValidationResult {
 
   for (const key of duplicateKeys) {
     const expectedForKey = expected.filter((line) => codeKey(line) === key)
-    const placedForKey = targetIds
+    const placedForKey = placedIds
       .map((id) => lineById[id])
       .filter((line): line is PuzzleLine => Boolean(line) && codeKey(line) === key)
 

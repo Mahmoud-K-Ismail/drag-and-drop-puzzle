@@ -23,6 +23,7 @@ AI-powered educational web app that transforms programming tasks into interactiv
 All architecture and flow diagrams are documented here:
 
 - [docs/system-design.md](docs/system-design.md)
+- [docs/challenges-and-decisions.md](docs/challenges-and-decisions.md)
 
 The underlying SVG sources are stored in:
 
