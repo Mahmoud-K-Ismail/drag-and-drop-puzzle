@@ -374,48 +374,9 @@
   color: inherit;
 }
 
-.codeText :global(.hljs-keyword),
-.codeText :global(.hljs-built_in),
-.codeText :global(.hljs-type),
-.codeText :global(.hljs-selector-tag) {
-  color: #1f4bd8;
-  font-weight: 700;
-}
-
-.codeText :global(.hljs-title),
-.codeText :global(.hljs-title.class_),
-.codeText :global(.hljs-title.function_) {
-  color: #7a4a14;
-  font-weight: 700;
-}
-
-.codeText :global(.hljs-string),
-.codeText :global(.hljs-regexp),
-.codeText :global(.hljs-meta .hljs-string) {
-  color: #bb2d2d;
-}
-
-.codeText :global(.hljs-number),
-.codeText :global(.hljs-literal),
-.codeText :global(.hljs-symbol) {
-  color: #0f766e;
-}
-
-.codeText :global(.hljs-comment),
-.codeText :global(.hljs-quote) {
-  color: #5f6d84;
-  font-style: italic;
-}
-
-.codeText :global(.hljs-operator),
-.codeText :global(.hljs-punctuation) {
-  color: #2b3348;
-}
-
-.codeText :global(.hljs-variable),
-.codeText :global(.hljs-params),
-.codeText :global(.hljs-attr) {
-  color: #3a4f8a;
+.codeText :global(div) {
+  line-height: inherit !important;
+  background: transparent !important;
 }
 
 .empty {

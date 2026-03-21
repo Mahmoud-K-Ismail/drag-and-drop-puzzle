@@ -105,20 +105,26 @@ Cross-lane behavior and visual feedback felt inconsistent. Dragging sometimes lo
 ### Tradeoff
 More drag configuration logic, but much clearer movement semantics.
 
-## 7) Monaco Editor Instability Inside Draggable Cards
+## 7) Monaco Editor Instability Inside Draggable Cards → Resolved with `colorize` API
 
 ### Challenge
-Using many Monaco instances in sortable cards triggered runtime disposal errors while dragging.
+The initial implementation embedded full `@monaco-editor/react` `Editor` instances inside each draggable card. When dnd-kit unmounted/remounted components during drag operations, Monaco's internal disposal lifecycle triggered runtime errors, crashing the UI.
 
-### Decision
-Remove per-card Monaco editors from drag path and render lightweight highlighted code text instead.
+### Decision (Iteration 1 — Reverted)
+Remove per-card Monaco editors and use `highlight.js` for lightweight syntax highlighting. This stabilised drag but deviated from the spec requirement to "use the Monaco code editor."
+
+### Decision (Iteration 2 — Current)
+Use Monaco's static `colorize()` API (`monaco.editor.colorize(code, lang, opts)`) instead of instantiating editor widgets. `colorize` tokenises code using Monaco's grammar engine and returns an HTML string with inline `style` attributes — no editor instances, no disposal lifecycle, no DOM widgets. A custom `puzzle-light` theme is defined via `defineTheme` + `setTheme` before the first `colorize` call so the inline colours match the project's design tokens.
 
 ### What Was Implemented
-- Card renderer switched to stable text-based code blocks.
-- Syntax highlighting preserved using a lightweight highlighter pipeline.
+- `@monaco-editor/react`'s `loader.init()` eagerly loads Monaco at module evaluation time.
+- A module-level `colorizeCache` (`Map<string, string>`) avoids redundant tokenisation.
+- Custom React hook `useMonacoColorize(code, language)` resolves the async `colorize` promise into a state string; plain escaped text is shown as fallback until Monaco finishes loading.
+- `DragOverlay` reads from the same cache (the block was already rendered, so the entry exists).
+- `highlight.js` dependency removed; all hljs CSS token rules replaced by Monaco's inline styles.
 
 ### Tradeoff
-Lost full Monaco editing surface in cards, but gained major runtime stability.
+Monaco's CDN bundle (~800 KB gzipped) is loaded on first visit, but subsequent visits hit the browser cache. No editor features (autocomplete, minimap, etc.) are exposed — only the tokeniser is used — so the runtime overhead is minimal.
 
 ## 8) Code Readability and IDE-Like Representation
 
@@ -126,15 +132,15 @@ Lost full Monaco editing surface in cards, but gained major runtime stability.
 Plain text rendering reduced readability; users needed clearer token-level syntax cues.
 
 ### Decision
-Introduce syntax token highlighting with language mapping and custom theme tokens.
+Use Monaco's tokeniser with a custom `puzzle-light` theme that defines IDE-like colour tokens for keywords, strings, numbers, comments, delimiters, identifiers, and operators.
 
 ### What Was Implemented
-- Language grammar registration and mapping.
-- IDE-like color tokens for keywords, strings, numbers, comments, symbols, and function/class names.
-- Compact card typography tuned for scanning.
+- Custom Monaco theme registered via `defineTheme` with rules covering all major token scopes.
+- Colours match the original project palette (keywords #1f4bd8, strings #bb2d2d, numbers #0f766e, comments #5f6d84, etc.).
+- Compact card typography tuned for scanning; Monaco's `colorize` output inherits `line-height` and `background: transparent` from the card's `.codeText` styles.
 
 ### Tradeoff
-Slight dependency increase, but significant readability improvement.
+Slight CDN dependency for Monaco, but syntax highlighting is now produced by the same engine the spec requires.
 
 ## 9) Cursor-to-Block Alignment During Drag
 
@@ -400,7 +406,21 @@ Add a proximity guard: if the pointer is more than 40px above the first slot or 
 - Proximity check: `if (pointerY < first.top - 40 || pointerY > last.bottom + 40) return null`.
 - `handleDragMove` clears preview if no slot detected; `handleDragEnd` skips move if no slot.
 
-## 23) Open Follow-Ups
+## 23) Vercel Deployment
+
+### Challenge
+The spec requires deployment on Vercel. The project has Vite for the client build and serverless API routes (`/api/generate`, `/api/explain`) that use `@vercel/node`.
+
+### Decision
+Add a `vercel.json` config that sets the build command, output directory, and SPA rewrites. The `/api/*` routes are handled by Vercel Serverless Functions (already in the correct `/api` directory convention).
+
+### What Was Implemented
+- `vercel.json` with `buildCommand`, `outputDirectory`, and `rewrites` (API pass-through + SPA fallback).
+- `@vercel/node` added as a dev dependency for type safety.
+- `highlight.js` removed (replaced by Monaco in section 7).
+- Production deployment via `vercel --prod`.
+
+## 24) Open Follow-Ups
 
 - Resolve remaining lint issues in puzzle store strings/escaping.
 - Optional: add automated tests around validation, hint cooldown, and history transitions.

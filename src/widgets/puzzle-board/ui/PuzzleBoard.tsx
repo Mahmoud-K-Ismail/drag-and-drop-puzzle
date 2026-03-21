@@ -1,10 +1,5 @@
 import React, { useEffect, useCallback, useRef, useState, type ReactNode } from 'react'
-import hljs from 'highlight.js/lib/core'
-import cpp from 'highlight.js/lib/languages/cpp'
-import java from 'highlight.js/lib/languages/java'
-import javascript from 'highlight.js/lib/languages/javascript'
-import python from 'highlight.js/lib/languages/python'
-import typescript from 'highlight.js/lib/languages/typescript'
+import { loader } from '@monaco-editor/react'
 import {
   DndContext,
   DragOverlay,
@@ -59,19 +54,69 @@ function computeSlotFromPointer(
   return items[items.length - 1].slot
 }
 
-hljs.registerLanguage('javascript', javascript)
-hljs.registerLanguage('typescript', typescript)
-hljs.registerLanguage('python', python)
-hljs.registerLanguage('java', java)
-hljs.registerLanguage('cpp', cpp)
+const colorizeCache = new Map<string, string>()
 
-function toHighlightLanguage(language: string) {
+const monacoReady = loader.init().then((monaco) => {
+  monaco.editor.defineTheme('puzzle-light', {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'keyword', foreground: '1f4bd8', fontStyle: 'bold' },
+      { token: 'type', foreground: '1f4bd8', fontStyle: 'bold' },
+      { token: 'string', foreground: 'bb2d2d' },
+      { token: 'string.escape', foreground: 'bb2d2d' },
+      { token: 'number', foreground: '0f766e' },
+      { token: 'number.float', foreground: '0f766e' },
+      { token: 'comment', foreground: '5f6d84', fontStyle: 'italic' },
+      { token: 'delimiter', foreground: '2b3348' },
+      { token: 'delimiter.parenthesis', foreground: '2b3348' },
+      { token: 'delimiter.bracket', foreground: '2b3348' },
+      { token: 'operator', foreground: '2b3348' },
+      { token: 'identifier', foreground: '3a4f8a' },
+      { token: 'variable', foreground: '3a4f8a' },
+    ],
+    colors: {
+      'editor.foreground': '#1d2538',
+      'editor.background': '#00000000',
+    },
+  })
+  monaco.editor.setTheme('puzzle-light')
+  return monaco
+})
+
+function toMonacoLanguage(language: string) {
   switch (language.toLowerCase()) {
     case 'c++':
       return 'cpp'
     default:
       return language.toLowerCase()
   }
+}
+
+function escapeHtml(text: string) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function useMonacoColorize(code: string, language: string): string {
+  const lang = toMonacoLanguage(language)
+  const key = `${lang}:${code}`
+  const [html, setHtml] = useState(() => colorizeCache.get(key) ?? '')
+
+  useEffect(() => {
+    const cached = colorizeCache.get(key)
+    if (cached) { setHtml(cached); return }
+
+    let cancelled = false
+    monacoReady.then((monaco) => {
+      monaco.editor.colorize(code, lang, { tabSize: 2 }).then((result: string) => {
+        colorizeCache.set(key, result)
+        if (!cancelled) setHtml(result)
+      })
+    })
+    return () => { cancelled = true }
+  }, [key, code, lang])
+
+  return html
 }
 
 function SortableBlock({
@@ -108,11 +153,7 @@ function SortableBlock({
   })
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
-  const highlightLanguage = toHighlightLanguage(language)
-  const highlightedCode = hljs.highlight(code, {
-    language: hljs.getLanguage(highlightLanguage) ? highlightLanguage : 'plaintext',
-    ignoreIllegals: true,
-  }).value
+  const highlightedCode = useMonacoColorize(code, language)
 
   const adjustedTransform = container === 'source' ? transform : isDragging ? transform : null
 
@@ -165,8 +206,8 @@ function SortableBlock({
       ) : null}
 
       <div className={styles.codeContainer}>
-        <pre className={`${styles.codeText} hljs`}>
-          <code dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+        <pre className={styles.codeText}>
+          <code dangerouslySetInnerHTML={{ __html: highlightedCode || escapeHtml(code) }} />
         </pre>
       </div>
     </article>
@@ -603,13 +644,10 @@ export function PuzzleBoard() {
               style={{ width: activeDragWidth ? `${activeDragWidth}px` : undefined }}
             >
               <div className={styles.codeContainer}>
-                <pre className={`${styles.codeText} hljs`}>
+                <pre className={styles.codeText}>
                   <code
                     dangerouslySetInnerHTML={{
-                      __html: hljs.highlight(activeLine.code, {
-                        language: hljs.getLanguage(toHighlightLanguage(language)) ? toHighlightLanguage(language) : 'plaintext',
-                        ignoreIllegals: true,
-                      }).value,
+                      __html: colorizeCache.get(`${toMonacoLanguage(language)}:${activeLine.code}`) || escapeHtml(activeLine.code),
                     }}
                   />
                 </pre>
