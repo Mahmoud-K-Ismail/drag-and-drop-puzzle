@@ -5,15 +5,7 @@
   min-height: 74vh;
   -webkit-user-select: none;
   user-select: none;
-  background:
-    repeating-linear-gradient(
-      to bottom,
-      rgba(15, 118, 110, 0.03) 0,
-      rgba(15, 118, 110, 0.03) 1px,
-      transparent 1px,
-      transparent 44px
-    ),
-    linear-gradient(180deg, #f5f9fd 0%, #eff4fa 100%);
+  background: linear-gradient(180deg, rgba(243, 247, 252, 0.95) 0%, rgba(236, 241, 248, 0.95) 100%);
 }
 
 .boardHint {
@@ -44,13 +36,25 @@
 }
 
 .ghostButton {
-  border: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--color-text);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #ffffff;
   border-radius: 10px;
   padding: 10px 12px;
   font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+.undoButton {
+  background: linear-gradient(90deg, #2033c5 0%, #2b45d8 100%);
+}
+
+.redoButton {
+  background: linear-gradient(90deg, #2e79bb 0%, #4193d4 100%);
+}
+
+.hintButton {
+  background: linear-gradient(90deg, #26b785 0%, #45c79b 100%);
 }
 
 .ghostButton:disabled {
@@ -59,18 +63,18 @@
 }
 
 .checkButton {
-  border: 1px solid #0f766e;
-  background: #0f766e;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: linear-gradient(90deg, #a415af 0%, #c127c8 100%);
   color: #fff;
   border-radius: 10px;
   padding: 10px 14px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 8px 16px rgba(15, 118, 110, 0.2);
+  box-shadow: 0 6px 14px rgba(160, 21, 175, 0.24);
 }
 
 .checkButton:hover {
-  background: #0d675f;
+  filter: brightness(1.05);
 }
 
 .checkButton:focus-visible {
@@ -80,9 +84,9 @@
 
 .hintText {
   margin: -2px 0 2px;
-  color: #0f172a;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px dashed rgba(15, 118, 110, 0.28);
+  color: #244a3e;
+  background: #e8faf2;
+  border: 1px dashed #77cda6;
   border-radius: 10px;
   padding: 8px 10px;
   font-size: 0.84rem;
@@ -91,22 +95,34 @@
 .lanesGrid {
   display: grid;
   grid-template-columns: minmax(280px, 0.95fr) minmax(320px, 1.05fr);
-  gap: 12px;
+  gap: 0;
   align-items: start;
+  border: 1px solid #cfd3db;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #d2d6de;
 }
 
 .lane {
-  border: 1px solid var(--color-border-soft);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.86);
+  border: 0;
+  border-radius: 0;
   overflow: hidden;
   min-height: 400px;
 }
 
+.lane[data-lane='source'] {
+  background: #f1efdf;
+  border-right: 1px solid #d8d0ad;
+}
+
+.lane[data-lane='target'] {
+  background: #f0edb6;
+}
+
 .laneHeader {
   padding: 10px 12px;
-  border-bottom: 1px solid var(--color-border-soft);
-  background: linear-gradient(180deg, rgba(15, 118, 110, 0.07), rgba(15, 118, 110, 0.02));
+  border-bottom: 1px solid rgba(72, 66, 34, 0.16);
+  background: transparent;
 }
 
 .laneTitle {
@@ -138,10 +154,10 @@
 }
 
 .card {
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid #cfd2d9;
   border-radius: 10px;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
+  background: #f8f9fc;
+  box-shadow: 0 2px 5px rgba(31, 41, 55, 0.12);
   overflow: hidden;
   cursor: default;
   position: relative;
@@ -151,7 +167,7 @@
 }
 
 .cardDragging {
-  box-shadow: 0 12px 22px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.2);
 }
 
 .cardIncorrect {
@@ -320,6 +336,18 @@
 
   .lanesGrid {
     grid-template-columns: 1fr;
+    gap: 10px;
+    border: 0;
+    background: transparent;
+  }
+
+  .lane {
+    border-radius: 12px;
+    border: 1px solid #d4d8df;
+  }
+
+  .lane[data-lane='source'] {
+    border-right: 1px solid #d4d8df;
   }
 
   .boardTopRow {

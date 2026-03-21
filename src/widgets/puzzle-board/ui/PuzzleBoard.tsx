@@ -136,7 +136,7 @@ function Lane({
   const { setNodeRef } = useDroppable({ id: laneId })
 
   return (
-    <section ref={setNodeRef} className={styles.lane}>
+    <section ref={setNodeRef} className={styles.lane} data-lane={laneId}>
       <header className={styles.laneHeader}>
         <h3 className={styles.laneTitle}>{title}</h3>
         <p className={styles.laneSubtitle}>{subtitle}</p>
@@ -249,13 +249,13 @@ export function PuzzleBoard() {
               {isExplaining ? <p className={styles.boardHintSecondary}>Generating line explanations in the background...</p> : null}
             </div>
             <div className={styles.controlsRow}>
-              <button className={styles.ghostButton} type="button" onClick={undo} disabled={pastCount === 0}>
+              <button className={`${styles.ghostButton} ${styles.undoButton}`} type="button" onClick={undo} disabled={pastCount === 0}>
                 Undo
               </button>
-              <button className={styles.ghostButton} type="button" onClick={redo} disabled={futureCount === 0}>
+              <button className={`${styles.ghostButton} ${styles.redoButton}`} type="button" onClick={redo} disabled={futureCount === 0}>
                 Redo
               </button>
-              <button className={styles.ghostButton} type="button" onClick={requestHint}>
+              <button className={`${styles.ghostButton} ${styles.hintButton}`} type="button" onClick={requestHint}>
                 Hint
               </button>
               <button className={styles.checkButton} type="button" onClick={checkSolution}>
