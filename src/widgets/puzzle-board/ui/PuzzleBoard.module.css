@@ -332,6 +332,8 @@
   max-width: 280px;
   padding: 10px 12px;
   font-size: 0.82rem;
+  cursor: default;
+  user-select: text;
   line-height: 1.45;
   color: #1a3a32;
   background: #dff5ec;
