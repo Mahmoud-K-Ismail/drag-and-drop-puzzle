@@ -82,8 +82,27 @@
   outline-offset: 2px;
 }
 
-.hintText {
+/* Fixed-height strip so hint text never shifts the lanes grid up/down */
+.hintStrip {
+  min-height: 48px;
   margin: -2px 0 2px;
+  box-sizing: border-box;
+}
+
+.hintStripPlaceholder {
+  min-height: 48px;
+  border-radius: 10px;
+  border: 1px dashed rgba(119, 205, 166, 0.28);
+  background: rgba(232, 250, 242, 0.45);
+  box-sizing: border-box;
+}
+
+.hintStripActive .hintText {
+  margin: 0;
+}
+
+.hintText {
+  margin: 0;
   color: #244a3e;
   background: #e8faf2;
   border: 1px dashed #77cda6;
@@ -95,6 +114,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 48px;
+  box-sizing: border-box;
 }
 
 .hintDismiss {

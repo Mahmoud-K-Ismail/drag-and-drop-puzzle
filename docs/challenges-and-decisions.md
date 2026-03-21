@@ -374,8 +374,9 @@ The original hint system was text-only: clicking "Hint" showed a message like "M
 - Target slot highlighted via `.gapSlotHintTarget` (green pulsing dashed border).
 - Source block highlighted via `.cardHinted` (green pulsing glow).
 - SVG arrow animated via `hintDash` keyframe (flowing dash offset).
-- Hint button disabled during cooldown via `hintOnCooldown` state driven by `hintCooldownUntil` timer.
-- Auto-dismiss after 8s; clickable hint text bar with "dismiss" label; auto-scroll to hinted block.
+- Hint button disabled during cooldown via `hintOnCooldown` state driven by `hintCooldownUntil` timer; label shows **`Hint (Ns)`** with a 1s tick so remaining seconds stay accurate.
+- **Hint strip placeholder:** a fixed `min-height` strip always sits between the controls and the lanes — empty state shows a subtle dashed placeholder; when a message appears it swaps in the same footprint so the grid does not jump vertically.
+- No timed auto-dismiss of hints (user dismisses via the bar or by moving a block, which clears hint state in the store); auto-scroll to hinted block on new hint.
 
 ### Tradeoff
 The SVG overlay requires fresh DOM measurements and recomputes on scroll/resize, but makes the hint unmistakably clear — the user sees exactly which block to move and where. Random selection means repeated hints may show different blocks, which helps the user discover multiple issues.
@@ -405,6 +406,9 @@ Add a proximity guard: if the pointer is more than 40px above the first slot or 
 - `computeSlotFromPointer` returns `number | null` instead of `number`.
 - Proximity check: `if (pointerY < first.top - 40 || pointerY > last.bottom + 40) return null`.
 - `handleDragMove` clears preview if no slot detected; `handleDragEnd` skips move if no slot.
+
+### Iteration — gaps vs cards and hint-aware targeting
+Using a single **65%** of row height for every slot made **short gap** rows map their lower third to the **next** slot down, so drops beside a hinted gap often snapped to the wrong row. **Gap** rows now use **~98%** of their height; **card** rows use **~52%** (closer to a midpoint split). When the dragged block is the **hinted** line (`activeId === hintLineId`) and `hintTargetSlot` is set, the pointer Y is mapped to that slot if it falls within the target row’s rect **plus vertical padding**, making the green target easier to hit without neighbors stealing the drop.
 
 ## 23) Vercel Deployment
 

@@ -26,19 +26,38 @@ const INDENT_STEP = 24
 const MAX_INDENT = 8
 
 const SLOT_PROXIMITY_PX = 40
+/** Short gaps: use almost full height so the lower third doesn't map to the slot below */
+const GAP_SLOT_FRACTION = 0.98
+/** Taller cards: split closer to midpoint to reduce neighbor bleed */
+const CARD_SLOT_FRACTION = 0.52
+/** When dragging the hinted block, expand vertical hit area for the target slot */
+const HINT_TARGET_PAD_PX = 16
+
+type SlotPickOpts = {
+  targetIds: string[]
+  activeDragId: string | null
+  hintLineId: string | null
+  hintTargetSlot: number | null
+}
 
 function computeSlotFromPointer(
   pointerY: number,
   bodyEl: HTMLElement,
+  opts: SlotPickOpts,
 ): number | null {
   const raw = Array.from(bodyEl.querySelectorAll<HTMLElement>('[data-slot-index]'))
-  const items: Array<{ rect: DOMRect; slot: number }> = []
+  const items: Array<{ rect: DOMRect; slot: number; isGap: boolean }> = []
 
   for (const el of raw) {
     const rect = el.getBoundingClientRect()
     if (rect.height === 0) continue
-    items.push({ rect, slot: Number(el.dataset.slotIndex) })
+    const slot = Number(el.dataset.slotIndex)
+    const id = opts.targetIds[slot]
+    const isGap = id ? isGapId(id) : false
+    items.push({ rect, slot, isGap })
   }
+
+  items.sort((a, b) => a.rect.top - b.rect.top)
 
   if (items.length === 0) return null
 
@@ -48,8 +67,25 @@ function computeSlotFromPointer(
     return null
   }
 
-  for (const { rect, slot } of items) {
-    if (pointerY < rect.top + rect.height * 0.65) return slot
+  if (
+    opts.activeDragId
+    && opts.hintLineId
+    && opts.hintTargetSlot !== null
+    && opts.activeDragId === opts.hintLineId
+  ) {
+    const hintItem = items.find((i) => i.slot === opts.hintTargetSlot)
+    if (hintItem) {
+      const top = hintItem.rect.top - HINT_TARGET_PAD_PX
+      const bottom = hintItem.rect.bottom + HINT_TARGET_PAD_PX
+      if (pointerY >= top && pointerY <= bottom) {
+        return opts.hintTargetSlot
+      }
+    }
+  }
+
+  for (const { rect, slot, isGap } of items) {
+    const frac = isGap ? GAP_SLOT_FRACTION : CARD_SLOT_FRACTION
+    if (pointerY < rect.top + rect.height * frac) return slot
   }
 
   return items[items.length - 1].slot
@@ -61,10 +97,14 @@ function useMonacoColorize(code: string, language: string): string {
   const [html, setHtml] = useState(() => colorizeCache.get(key) ?? '')
 
   useEffect(() => {
-    const cached = colorizeCache.get(key)
-    if (cached) { setHtml(cached); return }
-
     let cancelled = false
+    const cached = colorizeCache.get(key)
+    if (cached) {
+      queueMicrotask(() => {
+        if (!cancelled) setHtml(cached)
+      })
+      return () => { cancelled = true }
+    }
     colorize(code, lang).then((result) => {
       if (!cancelled) setHtml(result)
     })
@@ -354,6 +394,7 @@ export function PuzzleBoard() {
   const [activeDragWidth, setActiveDragWidth] = useState<number | null>(null)
   const [dropPreviewSlot, setDropPreviewSlot] = useState<number | null>(null)
   const [previewIndent, setPreviewIndent] = useState<number | null>(null)
+  const [hintCooldownTick, setHintCooldownTick] = useState(0)
   const targetBodyRef = useRef<HTMLDivElement>(null)
   const sourceLaneRef = useRef<Element | null>(null)
 
@@ -375,6 +416,20 @@ export function PuzzleBoard() {
     document.addEventListener('pointerdown', dismiss, true)
     return () => document.removeEventListener('pointerdown', dismiss, true)
   }, [openTooltipId])
+
+  useEffect(() => {
+    if (!hintOnCooldown) return
+    const timer = setInterval(() => setHintCooldownTick((n) => n + 1), 1000)
+    return () => clearInterval(timer)
+  }, [hintOnCooldown])
+
+  useEffect(() => {
+    const now = Date.now()
+    if (hintCooldownUntil <= now) { setHintOnCooldown(false); return }
+    setHintOnCooldown(true)
+    const timer = setTimeout(() => setHintOnCooldown(false), hintCooldownUntil - now)
+    return () => clearTimeout(timer)
+  }, [hintCooldownUntil])
 
   function getPointer(event: DragMoveEvent | DragEndEvent) {
     const origin = event.activatorEvent as PointerEvent
@@ -407,13 +462,20 @@ export function PuzzleBoard() {
     }
   }
 
+  const slotPickOpts: SlotPickOpts = {
+    targetIds,
+    activeDragId,
+    hintLineId,
+    hintTargetSlot,
+  }
+
   function handleDragMove(event: DragMoveEvent) {
     if (!targetBodyRef.current) return
     const { x, y } = getPointer(event)
     const targetLane = targetBodyRef.current.closest('[data-lane="target"]')
 
     if (isPointInElement(x, y, targetLane)) {
-      const slot = computeSlotFromPointer(y, targetBodyRef.current)
+      const slot = computeSlotFromPointer(y, targetBodyRef.current, slotPickOpts)
       if (slot !== null) {
         setDropPreviewSlot((prev) => (prev === slot ? prev : slot))
         const indent = computeIndent(event)
@@ -452,7 +514,10 @@ export function PuzzleBoard() {
     if (!overContainer) return
 
     if (overContainer === 'target' && targetBodyRef.current) {
-      const slotIndex = computeSlotFromPointer(y, targetBodyRef.current)
+      const slotIndex = computeSlotFromPointer(y, targetBodyRef.current, {
+        ...slotPickOpts,
+        activeDragId: activeId,
+      })
       if (slotIndex !== null) {
         moveLine(activeId, 'target', slotIndex)
         setIndent(activeId, computeIndent(event))
@@ -461,20 +526,6 @@ export function PuzzleBoard() {
       moveLine(activeId, 'source')
     }
   }
-
-  useEffect(() => {
-    if (!hintLineId) return
-    const timer = setTimeout(clearHint, 8000)
-    return () => clearTimeout(timer)
-  }, [hintLineId, clearHint])
-
-  useEffect(() => {
-    const now = Date.now()
-    if (hintCooldownUntil <= now) { setHintOnCooldown(false); return }
-    setHintOnCooldown(true)
-    const timer = setTimeout(() => setHintOnCooldown(false), hintCooldownUntil - now)
-    return () => clearTimeout(timer)
-  }, [hintCooldownUntil])
 
   useEffect(() => {
     if (!hintLineId) return
@@ -526,6 +577,13 @@ export function PuzzleBoard() {
   const activeLine = activeDragId ? lineById[activeDragId] : undefined
   const isDragActive = activeDragId !== null
 
+  /* Live wall-clock countdown; tick state only forces re-renders every second */
+  const hintCooldownSecondsLeft = hintOnCooldown
+    // eslint-disable-next-line react-hooks/purity -- derived from Date.now() for button label
+    ? Math.max(0, Math.ceil((hintCooldownUntil - Date.now()) / 1000))
+    : 0
+  void hintCooldownTick
+
   return (
     <>
       <DndContext
@@ -553,20 +611,33 @@ export function PuzzleBoard() {
               <button className={`${styles.ghostButton} ${styles.redoButton}`} type="button" onClick={redo} disabled={futureCount === 0}>
                 Redo
               </button>
-              <button className={`${styles.ghostButton} ${styles.hintButton}`} type="button" onClick={requestHint} disabled={hintOnCooldown}>
-                Hint
+              <button
+                className={`${styles.ghostButton} ${styles.hintButton}`}
+                type="button"
+                onClick={requestHint}
+                disabled={hintOnCooldown}
+                aria-label={hintOnCooldown ? `Hint on cooldown, ${hintCooldownSecondsLeft} seconds left` : 'Request a hint'}
+              >
+                {hintOnCooldown ? `Hint (${hintCooldownSecondsLeft}s)` : 'Hint'}
               </button>
               <button className={styles.checkButton} type="button" onClick={checkSolution}>
                 Check Solution
               </button>
             </div>
           </div>
-          {hintMessage ? (
-            <p className={styles.hintText} onClick={clearHint} role="status">
-              {hintMessage}
-              <span className={styles.hintDismiss}>dismiss</span>
-            </p>
-          ) : null}
+          <div
+            className={`${styles.hintStrip} ${hintMessage ? styles.hintStripActive : ''}`}
+            aria-live="polite"
+          >
+            {hintMessage ? (
+              <p className={styles.hintText} onClick={clearHint} role="status">
+                {hintMessage}
+                <span className={styles.hintDismiss}>dismiss</span>
+              </p>
+            ) : (
+              <div className={styles.hintStripPlaceholder} aria-hidden />
+            )}
+          </div>
 
           <div className={styles.lanesGrid}>
             <SortableContext items={sourceIds} strategy={verticalListSortingStrategy}>
