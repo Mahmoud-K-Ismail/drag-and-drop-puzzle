@@ -7,6 +7,8 @@ import python from 'highlight.js/lib/languages/python'
 import typescript from 'highlight.js/lib/languages/typescript'
 import {
   DndContext,
+  DragOverlay,
+  type DragStartEvent,
   type DragEndEvent,
   PointerSensor,
   useDroppable,
@@ -151,10 +153,16 @@ export function PuzzleBoard() {
   const requestHint = usePuzzleStore((state) => state.requestHint)
   const undo = usePuzzleStore((state) => state.undo)
   const redo = usePuzzleStore((state) => state.redo)
+  const [activeDragId, setActiveDragId] = useState<string | null>(null)
 
   const sensors = useSensors(useSensor(PointerSensor))
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveDragId(String(event.active.id))
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setActiveDragId(null)
     const activeId = String(event.active.id)
     const overId = event.over ? String(event.over.id) : null
 
@@ -222,10 +230,17 @@ export function PuzzleBoard() {
 
   const lineById = Object.fromEntries(lines.map((line) => [line.id, line]))
   const incorrectSet = new Set(incorrectIds)
+  const activeLine = activeDragId ? lineById[activeDragId] : undefined
 
   return (
     <>
-      <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={pointerWithin}
+        onDragStart={handleDragStart}
+        onDragCancel={() => setActiveDragId(null)}
+        onDragEnd={handleDragEnd}
+      >
         <section className={styles.board}>
           <div className={styles.boardTopRow}>
             <div>
@@ -303,6 +318,25 @@ export function PuzzleBoard() {
             </SortableContext>
           </div>
         </section>
+
+        <DragOverlay zIndex={2000}>
+          {activeLine ? (
+            <article className={`${styles.card} ${styles.cardDragging} ${styles.overlayCard}`}>
+              <div className={styles.codeContainer}>
+                <pre className={`${styles.codeText} hljs`}>
+                  <code
+                    dangerouslySetInnerHTML={{
+                      __html: hljs.highlight(activeLine.code, {
+                        language: hljs.getLanguage(toHighlightLanguage(language)) ? toHighlightLanguage(language) : 'plaintext',
+                        ignoreIllegals: true,
+                      }).value,
+                    }}
+                  />
+                </pre>
+              </div>
+            </article>
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       {isSolved ? (

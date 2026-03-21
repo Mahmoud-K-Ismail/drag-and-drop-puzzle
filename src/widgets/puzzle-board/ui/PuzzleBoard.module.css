@@ -170,6 +170,12 @@
   box-shadow: 0 10px 18px rgba(15, 23, 42, 0.2);
 }
 
+.overlayCard {
+  width: min(560px, 78vw);
+  opacity: 0.96;
+  pointer-events: none;
+}
+
 .cardIncorrect {
   border-color: #dc2626;
   box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.45);
