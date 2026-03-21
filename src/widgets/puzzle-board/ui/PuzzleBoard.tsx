@@ -85,6 +85,8 @@ function SortableBlock({
   incorrect,
   isDropTarget,
   isHinted,
+  tooltipOpen,
+  onToggleTooltip,
 }: {
   id: string
   slotIndex?: number
@@ -96,41 +98,21 @@ function SortableBlock({
   incorrect: boolean
   isDropTarget?: boolean
   isHinted?: boolean
+  tooltipOpen: boolean
+  onToggleTooltip: (id: string) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     data: { container },
     transition: { duration: 250, easing: 'cubic-bezier(0.25, 1, 0.5, 1)' },
   })
-  const [showTooltip, setShowTooltip] = useState(false)
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
-  const tooltipRef = useRef<HTMLDivElement>(null)
   const highlightLanguage = toHighlightLanguage(language)
   const highlightedCode = hljs.highlight(code, {
     language: hljs.getLanguage(highlightLanguage) ? highlightLanguage : 'plaintext',
     ignoreIllegals: true,
   }).value
-
-  const openTooltip = useCallback(() => {
-    if (!btnRef.current) return
-    const rect = btnRef.current.getBoundingClientRect()
-    setTooltipPos({ top: rect.bottom + 6, left: rect.right })
-    setShowTooltip(true)
-  }, [])
-
-  useEffect(() => {
-    if (!showTooltip) return
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        btnRef.current?.contains(e.target as Node) ||
-        tooltipRef.current?.contains(e.target as Node)
-      ) return
-      setShowTooltip(false)
-    }
-    document.addEventListener('pointerdown', handleClickOutside)
-    return () => document.removeEventListener('pointerdown', handleClickOutside)
-  }, [showTooltip])
 
   const adjustedTransform = container === 'source' ? transform : isDragging ? transform : null
 
@@ -161,17 +143,19 @@ function SortableBlock({
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
             event.stopPropagation()
-            if (showTooltip) { setShowTooltip(false); return }
-            openTooltip()
+            if (!tooltipOpen && btnRef.current) {
+              const rect = btnRef.current.getBoundingClientRect()
+              setTooltipPos({ top: rect.bottom + 6, left: rect.right })
+            }
+            onToggleTooltip(id)
           }}
         >
           ?
         </button>
       </div>
 
-      {showTooltip && tooltipPos ? (
+      {tooltipOpen && tooltipPos ? (
         <div
-          ref={tooltipRef}
           className={styles.explanationTooltip}
           style={{ top: tooltipPos.top, left: tooltipPos.left }}
         >
@@ -313,6 +297,7 @@ export function PuzzleBoard() {
   const undo = usePuzzleStore((state) => state.undo)
   const redo = usePuzzleStore((state) => state.redo)
   const [hintOnCooldown, setHintOnCooldown] = useState(false)
+  const [openTooltipId, setOpenTooltipId] = useState<string | null>(null)
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
   const [activeDragWidth, setActiveDragWidth] = useState<number | null>(null)
   const [dropPreviewSlot, setDropPreviewSlot] = useState<number | null>(null)
@@ -323,6 +308,21 @@ export function PuzzleBoard() {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   )
+
+  const toggleTooltip = useCallback((blockId: string) => {
+    setOpenTooltipId((prev) => (prev === blockId ? null : blockId))
+  }, [])
+
+  useEffect(() => {
+    if (!openTooltipId) return
+    function dismiss(e: MouseEvent) {
+      const target = e.target as HTMLElement
+      if (target.closest(`.${styles.infoButton}`) || target.closest(`.${styles.explanationTooltip}`)) return
+      setOpenTooltipId(null)
+    }
+    document.addEventListener('pointerdown', dismiss, true)
+    return () => document.removeEventListener('pointerdown', dismiss, true)
+  }, [openTooltipId])
 
   function getPointer(event: DragMoveEvent | DragEndEvent) {
     const origin = event.activatorEvent as PointerEvent
@@ -347,6 +347,7 @@ export function PuzzleBoard() {
   }
 
   function handleDragStart(event: DragStartEvent) {
+    setOpenTooltipId(null)
     setActiveDragId(String(event.active.id))
     setActiveDragWidth(event.active.rect.current.initial?.width ?? null)
     if (!sourceLaneRef.current) {
@@ -534,6 +535,8 @@ export function PuzzleBoard() {
                       language={language}
                       container="source"
                       incorrect={false}
+                      tooltipOpen={openTooltipId === line.id}
+                      onToggleTooltip={toggleTooltip}
                       isHinted={hintLineId === line.id}
                     />
                   )
@@ -583,6 +586,8 @@ export function PuzzleBoard() {
                       incorrect={incorrectSet.has(line.id)}
                       isDropTarget={isDragActive && dropPreviewSlot === slotIndex}
                       isHinted={hintLineId === line.id}
+                      tooltipOpen={openTooltipId === line.id}
+                      onToggleTooltip={toggleTooltip}
                     />
                   )
                 })}
