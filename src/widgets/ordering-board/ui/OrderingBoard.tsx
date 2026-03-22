@@ -24,6 +24,8 @@ import puzzleStyles from '../../puzzle-board/ui/PuzzleBoard.module.css'
 import styles from './OrderingBoard.module.css'
 
 const MAX_INDENT = 8
+/** Same step as PuzzleBoard target lane (`INDENT_STEP`) */
+const INDENT_STEP = 24
 
 function useMonacoColorize(code: string, language: string): string {
   const lang = toMonacoLanguage(language)
@@ -81,8 +83,9 @@ function OrderingLineCard({
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    marginLeft: `${indent * 24}px`,
-    width: `calc(100% - ${indent * 24}px)`,
+    marginLeft: `${indent * INDENT_STEP}px`,
+    flex: '1 1 0%',
+    minWidth: 0,
     opacity: isDragging ? 0.35 : 1,
   }
 
@@ -93,6 +96,34 @@ function OrderingLineCard({
       className={`${styles.orderingRow} ${isHintTarget ? styles.orderingRowHintTarget : ''}`}
       data-order-index={orderIndex}
     >
+      <div className={styles.indentGutter}>
+        <button
+          type="button"
+          className={styles.indentStepBtn}
+          aria-label="Decrease indent"
+          disabled={curIndent <= 0}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onIndentDelta(id, -1)
+          }}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          className={styles.indentStepBtn}
+          aria-label="Increase indent"
+          disabled={curIndent >= MAX_INDENT}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            onIndentDelta(id, 1)
+          }}
+        >
+          +
+        </button>
+      </div>
       <article
         ref={setNodeRef}
         style={style}
@@ -101,34 +132,6 @@ function OrderingLineCard({
         {...attributes}
         {...listeners}
       >
-        <div className={styles.indentControls}>
-          <button
-            type="button"
-            className={styles.indentBtn}
-            aria-label="Decrease indent"
-            disabled={curIndent <= 0}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation()
-              onIndentDelta(id, -1)
-            }}
-          >
-            −
-          </button>
-          <button
-            type="button"
-            className={styles.indentBtn}
-            aria-label="Increase indent"
-            disabled={curIndent >= MAX_INDENT}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation()
-              onIndentDelta(id, 1)
-            }}
-          >
-            +
-          </button>
-        </div>
         <div className={`${puzzleStyles.blockActions} ${tooltipOpen ? puzzleStyles.blockActionsActive : ''}`}>
           <button
             className={puzzleStyles.infoButton}
@@ -321,7 +324,7 @@ export function OrderingBoard() {
           <div className={styles.boardTopRow}>
             <div>
               <p className={styles.boardHint}>
-                Drag lines to match execution order. Use − / + to adjust indentation.
+                Drag lines to reorder. Use − / + in the left gutter to step indentation — same spacing as the guide ticks below.
               </p>
             </div>
             <div className={styles.controlsRow}>
@@ -358,6 +361,20 @@ export function OrderingBoard() {
           </div>
 
           <div ref={listBodyRef} className={styles.orderingScroll}>
+            <header className={styles.orderingLaneHeader}>
+              <h3 className={styles.orderingLaneTitle}>Ordered program</h3>
+              <p className={styles.orderingLaneSubtitle}>Match order and indent depth to the reference solution.</p>
+            </header>
+            <div className={styles.rulerAlignRow} aria-hidden="true">
+              <div className={styles.rulerGutterSpacer} />
+              <div className={styles.rulerTicksRegion}>
+                <div className={puzzleStyles.indentRuler}>
+                  {Array.from({ length: MAX_INDENT + 1 }, (_, i) => (
+                    <div key={i} className={puzzleStyles.indentTick} />
+                  ))}
+                </div>
+              </div>
+            </div>
             <SortableContext items={orderingIds} strategy={verticalListSortingStrategy}>
               <div className={styles.orderingList}>
                 {orderingIds.map((id, orderIndex) => {

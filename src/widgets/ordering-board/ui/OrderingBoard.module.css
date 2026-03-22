@@ -30,11 +30,55 @@
 }
 
 .orderingScroll {
+  /* Align ruler ticks with card column (left gutter width for − / +) */
+  --ordering-indent-gutter: 44px;
   border: 1px solid #cfd3db;
   border-radius: 14px;
   background: #f0edb6;
-  padding: 10px;
+  /* Mirrors PuzzleBoard target lane: header + body padding */
+  padding: 0;
   min-height: 320px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.orderingLaneHeader {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(72, 66, 34, 0.16);
+  background: transparent;
+}
+
+.orderingLaneTitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+.orderingLaneSubtitle {
+  margin: 3px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+}
+
+.rulerAlignRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px 2px;
+  border-bottom: 1px solid rgba(72, 66, 34, 0.1);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.rulerGutterSpacer {
+  flex: 0 0 var(--ordering-indent-gutter);
+  width: var(--ordering-indent-gutter);
+  flex-shrink: 0;
+}
+
+.rulerTicksRegion {
+  flex: 1;
+  min-width: 0;
 }
 
 .orderingList {
@@ -42,10 +86,14 @@
   flex-direction: column;
   gap: 8px;
   max-width: 100%;
+  padding: 10px;
+  flex: 1;
 }
 
 .orderingRow {
-  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
   border-radius: 10px;
   transition: box-shadow 0.15s ease;
 }
@@ -65,35 +113,47 @@
   }
 }
 
-.indentControls {
-  position: absolute;
-  top: 6px;
-  left: 6px;
+/* Left gutter: same visual language as PuzzleBoard .indentTick, not overlaid on code */
+.indentGutter {
+  flex: 0 0 var(--ordering-indent-gutter);
+  width: var(--ordering-indent-gutter);
+  flex-shrink: 0;
   display: flex;
-  gap: 4px;
-  z-index: 2;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 0;
   pointer-events: auto;
 }
 
-.indentBtn {
-  width: 26px;
-  height: 22px;
+.indentStepBtn {
+  width: 28px;
+  height: 26px;
   border-radius: 6px;
-  border: 1px solid rgba(59, 130, 246, 0.45);
-  background: rgba(255, 255, 255, 0.95);
+  border: 1.5px solid rgba(59, 130, 246, 0.22);
+  background: rgba(59, 130, 246, 0.08);
   color: #1d4ed8;
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   line-height: 1;
   cursor: pointer;
   padding: 0;
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 
-.indentBtn:hover {
-  background: #eff6ff;
+.indentStepBtn:hover:not(:disabled) {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.25);
 }
 
-.indentBtn:focus-visible {
+.indentStepBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.indentStepBtn:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 1px;
 }
