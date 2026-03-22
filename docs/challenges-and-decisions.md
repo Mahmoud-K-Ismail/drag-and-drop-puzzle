@@ -441,7 +441,28 @@ Let the user pick **before Generate** via a segmented control in the setup panel
 ### Tradeoff
 Two UIs to maintain, but one API contract and one validation core.
 
-## 25) Open Follow-Ups
+## 25) Order-list mode: layout metrics, clipping, and drag ghost parity
+
+### Challenge
+The **ordering** UI regressed or confused users in several independent ways: cards looked full-width or oddly tall; the **`?`** sat on the **yellow** lane instead of inside the white card; **explanation tooltips** were **clipped** by `overflow: hidden` on the yellow shell and `right: 0` tooltips growing **left** past the lane edge; the **DragOverlay** ghost **narrowed** mid-drag so **long lines wrapped**; the workspace still felt **too tall** because **`.board { min-height: 74vh }`** competed with **`.boardOrdering { min-height: 0 }`** (same specificity). **Indent ruler ticks** looked inert until hover/focus was wired to state.
+
+### Decision
+- **List rows:** `align-items: flex-start` on the vertical list so each **`orderingRow`** is **`width: max-content`** (not stretched to the full yellow width—empty bands were a flex default `stretch` artifact).
+- **Card chrome:** Use **`width: fit-content`** on the line card so intrinsic sizing includes **code + `?`** in one flex row ( **`max-content` had been tied to the code column only** in practice).
+- **Tooltips:** Set **`overflow: visible`** on **`orderingScroll`** and **`rightPane`** where needed; order-specific tooltip positioning (**center under `?`**) to reduce leftward overflow; keep **`HintArrowOverlay`** as the primary directional hint (see rubric: arrows toward the correction—curved path to target is acceptable vs. a tiny edge chevron).
+- **Drag ghost:** Measure **`getBoundingClientRect()`** on **`[data-block-id]`** and **`[data-ordering-row]`**; pass **row + article** pixel widths into the overlay via **`--ordering-drag-article-px`**; **do not** apply **`orderingLineCard`** on the ghost ( **`flex: 1` + `min-width: 0`** had been shrinking the card and re-wrapping text).
+- **Vertical slack:** **`.board.boardOrdering { min-height: unset }`** to override the two-lane **74vh** habit; **`orderingScroll { height: auto; flex: 0 0 auto }`** so the yellow panel hugs content.
+- **Ruler feedback:** Keep **`rulerFocusLineId`** in sync with **`orderingIds`** and fall back to the **first** line after pointer leave so ticks stay meaningful without hovering forever.
+
+### What Was Implemented
+- `OrderingBoard.tsx` / `OrderingBoard.module.css`: row marker `data-ordering-row`, compact **code + `?`** row, drag overlay structure mirroring gutter + card, DOM sizing for drag.
+- `PlaygroundPage.module.css`: **`align-self: start`** on **`rightPane`** to avoid a tall empty band beside the sticky sidebar; **`overflow: visible`** where tooltips must escape.
+- `puzzle.store.ts`: hint **`clearHintState` / `hintMessage`** ordering fix (no duplicate keys) from earlier lint/TS work.
+
+### Tradeoff
+**Overflow visible** on the workspace card can let children paint slightly outside rounded corners; accepted in exchange for readable explanations and overlays.
+
+## 26) Open Follow-Ups
 
 - Resolve remaining lint issues in puzzle store strings/escaping.
 - Optional: add automated tests around validation, hint cooldown, and history transitions.
