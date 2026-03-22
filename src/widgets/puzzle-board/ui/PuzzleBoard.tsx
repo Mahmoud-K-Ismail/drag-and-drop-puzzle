@@ -338,6 +338,7 @@ export function PuzzleBoard() {
   const incorrectIds = usePuzzleStore((state) => state.incorrectIds)
   const isSolved = usePuzzleStore((state) => state.isSolved)
   const hintMessage = usePuzzleStore((state) => state.hintMessage)
+  const checkFeedbackMessage = usePuzzleStore((state) => state.checkFeedbackMessage)
   const hintLineId = usePuzzleStore((state) => state.hintLineId)
   const hintTargetSlot = usePuzzleStore((state) => state.hintTargetSlot)
   const hintCooldownUntil = usePuzzleStore((state) => state.hintCooldownUntil)
@@ -544,6 +545,7 @@ export function PuzzleBoard() {
 
   const lineById = Object.fromEntries(lines.map((line) => [line.id, line]))
   const incorrectSet = new Set(incorrectIds)
+  const stripMessage = hintMessage ?? checkFeedbackMessage
   const activeLine = activeDragId ? lineById[activeDragId] : undefined
   const isDragActive = activeDragId !== null
 
@@ -596,12 +598,12 @@ export function PuzzleBoard() {
             </div>
           </div>
           <div
-            className={`${styles.hintStrip} ${hintMessage ? styles.hintStripActive : ''}`}
+            className={`${styles.hintStrip} ${stripMessage ? styles.hintStripActive : ''}`}
             aria-live="polite"
           >
-            {hintMessage ? (
+            {stripMessage ? (
               <p className={styles.hintText} onClick={clearHint} role="status">
-                {hintMessage}
+                {stripMessage}
                 <span className={styles.hintDismiss}>dismiss</span>
               </p>
             ) : (

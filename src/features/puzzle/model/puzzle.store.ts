@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { devLog } from '../../../shared/lib/devLog'
+import { normalizePuzzleLineCode } from '../../../shared/lib/puzzleLineCode'
 import { validatePuzzle, type PuzzleLayoutMode } from './validatePuzzle'
 
 export type { PuzzleLayoutMode }
@@ -42,6 +44,8 @@ type PuzzleState = {
   isLoading: boolean
   incorrectIds: string[]
   isSolved: boolean
+  /** Non-hint feedback after Check (e.g. incomplete puzzle); cleared with hints / moves */
+  checkFeedbackMessage: string | null
   hintMessage: string | null
   hintLineId: string | null
   hintDirection: 'up' | 'down' | 'left' | 'right' | null
@@ -99,6 +103,7 @@ function clearHintState() {
     hintLineId: null,
     hintDirection: null,
     hintTargetSlot: null,
+    checkFeedbackMessage: null,
   } as const
 }
 
@@ -114,6 +119,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
   isLoading: false,
   incorrectIds: [],
   isSolved: false,
+  checkFeedbackMessage: null,
   hintMessage: null,
   hintLineId: null,
   hintDirection: null,
@@ -123,9 +129,17 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
   future: [],
   error: null,
   setLines: (lines, language, layoutModeArg = 'puzzle') => {
+    const normalizedLines = normalizePuzzleLineCode(lines)
+
+    devLog('puzzle', 'setLines', {
+      lineCount: normalizedLines.length,
+      language,
+      layoutMode: layoutModeArg,
+    })
+
     if (layoutModeArg === 'ordering') {
       set({
-        lines,
+        lines: normalizedLines,
         language,
         layoutMode: 'ordering',
         orderingIds: shuffleIds(lines.map((line) => line.id)),
@@ -143,10 +157,10 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
       return
     }
 
-    const sourceIds = shuffleIds(lines.map((line) => line.id))
-    const targetIds = lines.map(() => createGapId())
+    const sourceIds = shuffleIds(normalizedLines.map((line) => line.id))
+    const targetIds = normalizedLines.map(() => createGapId())
     set({
-      lines,
+      lines: normalizedLines,
       language,
       layoutMode: 'puzzle',
       orderingIds: [],
@@ -270,7 +284,18 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         layoutMode: state.layoutMode,
         orderingIds: state.orderingIds,
       })
-      return { ...state, incorrectIds: result.incorrectIds, isSolved: result.isSolved }
+      devLog('puzzle', 'checkSolution', {
+        isSolved: result.isSolved,
+        incorrectCount: result.incorrectIds.length,
+        layoutMode: state.layoutMode,
+        incompleteFeedback: Boolean(result.checkFeedback),
+      })
+      return {
+        ...state,
+        incorrectIds: result.incorrectIds,
+        isSolved: result.isSolved,
+        checkFeedbackMessage: result.isSolved ? null : (result.checkFeedback ?? null),
+      }
     })
   },
   dismissSolved: () => set({ isSolved: false }),
@@ -310,12 +335,24 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
     set((state) => {
       const now = Date.now()
 
+      devLog('puzzle', 'requestHint', {
+        lineCount: state.lines.length,
+        layoutMode: state.layoutMode,
+        onCooldown: now < state.hintCooldownUntil,
+      })
+
       if (now < state.hintCooldownUntil) {
         const secondsLeft = Math.max(1, Math.ceil((state.hintCooldownUntil - now) / 1000))
-        return { ...state, hintMessage: `Hint cooldown active. Try again in ${secondsLeft}s.` }
+        devLog('puzzle', 'hint skipped (cooldown)', { secondsLeft })
+        return {
+          ...state,
+          checkFeedbackMessage: null,
+          hintMessage: `Hint cooldown active. Try again in ${secondsLeft}s.`,
+        }
       }
 
       if (state.lines.length === 0) {
+        devLog('puzzle', 'hint skipped (no puzzle)')
         return { ...state, ...clearHintState(), hintMessage: 'Generate a puzzle first to receive hints.' }
       }
 
@@ -389,6 +426,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
         const pick = options[Math.floor(Math.random() * options.length)]
         return {
           ...state,
+          ...clearHintState(),
           hintMessage: pick.message,
           hintLineId: pick.lineId,
           hintDirection: pick.direction,
@@ -462,6 +500,7 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
       const pick = options[Math.floor(Math.random() * options.length)]
       return {
         ...state,
+        ...clearHintState(),
         hintMessage: pick.message,
         hintLineId: pick.lineId,
         hintDirection: pick.direction,

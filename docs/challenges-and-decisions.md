@@ -462,7 +462,24 @@ The **ordering** UI regressed or confused users in several independent ways: car
 ### Tradeoff
 **Overflow visible** on the workspace card can let children paint slightly outside rounded corners; accepted in exchange for readable explanations and overlays.
 
-## 26) Open Follow-Ups
+## 26) Line text without leading whitespace (indent from UI only)
+
+### Challenge
+Model output and cached examples store each line’s `code` with leading spaces/tabs matching nesting. That made **Code Bank** cards look pre-indented, so the puzzle leaked structure the user is supposed to set via the indent ruler / drop position.
+
+### Decision
+On `setLines`, normalize every line with **`code: line.code.trimStart()`** (`normalizePuzzleLineCode` in `puzzleLineCode.ts`). **Correctness** still uses `targetIndent` vs `indentById`; **`codeKey`** in validation already uses `.trim()`, so logical matching stays consistent.
+
+### Tradeoff
+If a language ever needed meaningful leading whitespace inside a line (extremely rare), `trimStart` would remove only leading run — trailing/internal spaces are untouched.
+
+### Check Solution when the board is incomplete (two-lane)
+
+**Challenge:** For partial puzzles, validation returned `incorrectIds: [...placedIds]`, so **every** block in the solution turned red even when locally correct. The real issue was “not finished yet,” not “all wrong.”
+
+**Decision:** If any line stays in the Code Bank or any target slot is still a gap, return **`incorrectIds: []`** and a **`checkFeedback`** string (counts of bank vs empty slots). The store maps that to **`checkFeedbackMessage`**, shown in the same dismissible strip as hints (`hintMessage ?? checkFeedbackMessage`). Full order/indent validation runs only when the board is complete. Ordering mode uses the same idea if `orderingIds.length !== lines.length` (should be rare).
+
+## 27) Open Follow-Ups
 
 - Resolve remaining lint issues in puzzle store strings/escaping.
 - Optional: add automated tests around validation, hint cooldown, and history transitions.

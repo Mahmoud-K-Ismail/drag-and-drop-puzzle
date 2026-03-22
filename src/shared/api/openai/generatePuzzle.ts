@@ -1,3 +1,5 @@
+import type { SupportedLanguage } from '../../config/outputLanguages'
+import { devLog, devWarn } from '../../lib/devLog'
 import {
   generatePuzzleRequestSchema,
   generatedPuzzleSchema,
@@ -10,13 +12,20 @@ const GENERATE_TIMEOUT_MS = 120_000
 export async function generatePuzzle(request: {
   apiKey: string
   prompt: string
-  language: 'auto' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp'
+  language: SupportedLanguage
 }): Promise<GeneratedPuzzle> {
   const payload = generatePuzzleRequestSchema.parse(request)
   const controller = new AbortController()
   const timeoutId = window.setTimeout(() => controller.abort(), GENERATE_TIMEOUT_MS)
+  const t0 = performance.now()
 
   try {
+    devLog('api', 'POST /api/generate', {
+      language: payload.language,
+      promptLength: payload.prompt.length,
+      hasApiKey: payload.apiKey.length > 0,
+    })
+
     const response = await fetch('/api/generate', {
       method: 'POST',
       headers: {
@@ -51,8 +60,15 @@ export async function generatePuzzle(request: {
     }
 
     const data = await response.json()
-    return generatedPuzzleSchema.parse(data)
+    const parsed = generatedPuzzleSchema.parse(data)
+    devLog('api', 'generate OK', {
+      lineCount: parsed.lines.length,
+      language: parsed.language,
+      ms: Math.round(performance.now() - t0),
+    })
+    return parsed
   } catch (error) {
+    devWarn('api', 'generate failed', error)
     if (error instanceof DOMException && error.name === 'AbortError') {
       throw new Error(
         'Generation timed out after 2 minutes. Try again, use a shorter prompt, or check your network and API key.',

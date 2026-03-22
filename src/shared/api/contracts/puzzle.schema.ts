@@ -1,4 +1,8 @@
 import { z } from 'zod'
+import {
+  SUPPORTED_LANGUAGE_VALUES,
+  type SupportedLanguage,
+} from '../../config/outputLanguages'
 
 export const generatedLineSchema = z.object({
   id: z.string(),
@@ -17,7 +21,12 @@ export const generatePuzzleRequestSchema = z.object({
   apiKey: z.string().min(1),
   prompt: z.string().min(1),
   language: z
-    .enum(['auto', 'javascript', 'typescript', 'python', 'java', 'cpp'])
+    .enum(
+      SUPPORTED_LANGUAGE_VALUES as unknown as [
+        SupportedLanguage,
+        ...SupportedLanguage[],
+      ],
+    )
     .default('auto'),
 })
 

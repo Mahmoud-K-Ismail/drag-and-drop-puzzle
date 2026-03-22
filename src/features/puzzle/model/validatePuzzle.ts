@@ -12,9 +12,11 @@ type ValidationInput = {
   orderingIds: string[]
 }
 
-type ValidationResult = {
+export type ValidationResult = {
   incorrectIds: string[]
   isSolved: boolean
+  /** When the puzzle isn’t finished — show this instead of marking placed lines wrong */
+  checkFeedback?: string
 }
 
 function codeKey(line: PuzzleLine) {
@@ -127,15 +129,29 @@ export function validatePuzzle(input: ValidationInput): ValidationResult {
 
   if (layoutMode === 'ordering') {
     if (orderingIds.length !== lines.length) {
-      return { incorrectIds: [...orderingIds], isSolved: false }
+      return {
+        incorrectIds: [],
+        isSolved: false,
+        checkFeedback: 'The ordered list is incomplete. Try generating the puzzle again.',
+      }
     }
     return validatePlacedOrder(lines, orderingIds, indentById)
   }
 
   const placedIds = targetIds.filter((id) => !isGapId(id))
+  const gapCount = targetIds.filter((id) => isGapId(id)).length
+  const bankCount = sourceIds.length
 
-  if (sourceIds.length > 0 || placedIds.length !== lines.length) {
-    return { incorrectIds: [...placedIds], isSolved: false }
+  if (bankCount > 0 || placedIds.length !== lines.length) {
+    let checkFeedback: string
+    if (bankCount > 0 && gapCount > 0) {
+      checkFeedback = `Finish the puzzle first: ${bankCount} line(s) still in the Code Bank and ${gapCount} empty slot(s). Place every line in the solution, then check again.`
+    } else if (bankCount > 0) {
+      checkFeedback = `Finish the puzzle first: move all ${bankCount} remaining line(s) from the Code Bank into the solution.`
+    } else {
+      checkFeedback = `Finish the puzzle first: fill all empty slots in the solution (${gapCount} left).`
+    }
+    return { incorrectIds: [], isSolved: false, checkFeedback }
   }
 
   return validatePlacedOrder(lines, placedIds, indentById)

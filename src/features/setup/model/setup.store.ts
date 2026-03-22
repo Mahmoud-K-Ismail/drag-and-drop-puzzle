@@ -1,7 +1,8 @@
 import { create } from 'zustand'
+import type { SupportedLanguage } from '../../../shared/config/outputLanguages'
 import { readApiKeyFromStorage, writeApiKeyToStorage } from '../../../shared/lib/localStorage'
 
-export type SupportedLanguage = 'auto' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp'
+export type { SupportedLanguage }
 
 /** Chosen before Generate; applied when the puzzle is created. */
 export type GenerationLayoutMode = 'puzzle' | 'ordering'

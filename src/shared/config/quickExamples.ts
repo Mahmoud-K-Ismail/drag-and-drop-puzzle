@@ -1,7 +1,9 @@
 /**
  * Curated prompts for the “Quick examples” dropdown.
- * Kept as static strings (not fetched/cached from the API) so demos work offline in the UI
- * and the rubric’s “≥3 predefined tasks” stays explicit in source control.
+ * Kept as static strings (not fetched from the API) so demos stay explicit in source control.
+ *
+ * For each prompt + concrete output language (JS/TS/Python/Java/C++), see `cachedQuickPuzzles.ts`:
+ * Generate uses bundled line/explanation data (no OpenAI). `auto` still uses the API.
  */
 export const QUICK_EXAMPLES = [
   'Write a function that uses a while loop to generate a fibonacci sequence.',

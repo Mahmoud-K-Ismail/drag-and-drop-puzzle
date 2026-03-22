@@ -1,5 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { z } from 'zod'
+import {
+  SUPPORTED_LANGUAGE_VALUES,
+  type SupportedLanguage,
+} from '../src/shared/config/outputLanguages'
 
 type GeneratedLine = {
   id: string
@@ -17,7 +21,14 @@ type GeneratedPuzzle = {
 const requestSchema = z.object({
   apiKey: z.string().min(1),
   prompt: z.string().min(1),
-  language: z.enum(['auto', 'javascript', 'typescript', 'python', 'java', 'cpp']).default('auto'),
+  language: z
+    .enum(
+      SUPPORTED_LANGUAGE_VALUES as unknown as [
+        SupportedLanguage,
+        ...SupportedLanguage[],
+      ],
+    )
+    .default('auto'),
 })
 
 const TARGET_MAX_LINES = 16
