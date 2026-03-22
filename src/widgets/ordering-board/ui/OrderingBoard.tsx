@@ -60,9 +60,12 @@ function OrderingLineCard({
   incorrect,
   isHinted,
   isHintTarget,
+  isRulerLineFocused,
   tooltipOpen,
   onToggleTooltip,
   onIndentDelta,
+  onRowPointerEnter,
+  onRowPointerLeave,
 }: {
   id: string
   orderIndex: number
@@ -73,9 +76,12 @@ function OrderingLineCard({
   incorrect: boolean
   isHinted?: boolean
   isHintTarget?: boolean
+  isRulerLineFocused: boolean
   tooltipOpen: boolean
   onToggleTooltip: (id: string) => void
   onIndentDelta: (id: string, delta: number) => void
+  onRowPointerEnter: (id: string) => void
+  onRowPointerLeave: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   const highlightedCode = useMonacoColorize(code, language)
@@ -93,10 +99,12 @@ function OrderingLineCard({
 
   return (
     <div
-      className={`${styles.orderingRow} ${isHintTarget ? styles.orderingRowHintTarget : ''}`}
+      className={`${styles.orderingRow} ${isHintTarget ? styles.orderingRowHintTarget : ''} ${isRulerLineFocused ? styles.orderingRowRulerFocus : ''}`}
       data-order-index={orderIndex}
+      onPointerEnter={() => onRowPointerEnter(id)}
+      onPointerLeave={() => onRowPointerLeave()}
     >
-      <div className={styles.indentGutter}>
+      <div className={`${styles.indentGutter} ${isRulerLineFocused ? styles.indentGutterLive : ''}`}>
         <button
           type="button"
           className={styles.indentStepBtn}
@@ -193,6 +201,9 @@ export function OrderingBoard() {
   const [activeDragWidth, setActiveDragWidth] = useState<number | null>(null)
   const [hintOnCooldown, setHintOnCooldown] = useState(false)
   const [hintCooldownTick, setHintCooldownTick] = useState(0)
+  /** Line id driving the indent ruler + gutter highlight (hover or drag) */
+  const [rulerFocusLineId, setRulerFocusLineId] = useState<string | null>(null)
+  const rulerLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const listBodyRef = useRef<HTMLDivElement>(null)
 
   const sensors = useSensors(
@@ -204,12 +215,36 @@ export function OrderingBoard() {
     setOpenTooltipId((prev) => (prev === blockId ? null : blockId))
   }, [])
 
+  const focusRulerLine = useCallback((id: string) => {
+    if (rulerLeaveTimerRef.current) {
+      clearTimeout(rulerLeaveTimerRef.current)
+      rulerLeaveTimerRef.current = null
+    }
+    setRulerFocusLineId(id)
+  }, [])
+
+  const scheduleRulerUnfocus = useCallback(() => {
+    if (rulerLeaveTimerRef.current) clearTimeout(rulerLeaveTimerRef.current)
+    rulerLeaveTimerRef.current = setTimeout(() => {
+      setRulerFocusLineId(null)
+      rulerLeaveTimerRef.current = null
+    }, 220)
+  }, [])
+
+  useEffect(
+    () => () => {
+      if (rulerLeaveTimerRef.current) clearTimeout(rulerLeaveTimerRef.current)
+    },
+    [],
+  )
+
   const bumpIndent = useCallback(
     (id: string, delta: number) => {
+      focusRulerLine(id)
       const cur = indentById[id] ?? 0
       setIndent(id, Math.max(0, Math.min(MAX_INDENT, cur + delta)))
     },
-    [indentById, setIndent],
+    [focusRulerLine, indentById, setIndent],
   )
 
   useEffect(() => {
@@ -261,13 +296,17 @@ export function OrderingBoard() {
 
   function handleDragStart(event: DragStartEvent) {
     setOpenTooltipId(null)
-    setActiveDragId(String(event.active.id))
+    const id = String(event.active.id)
+    setActiveDragId(id)
     setActiveDragWidth(event.active.rect.current.initial?.width ?? null)
+    focusRulerLine(id)
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    const activeId = String(event.active.id)
     setActiveDragId(null)
     setActiveDragWidth(null)
+    focusRulerLine(activeId)
     const { active, over } = event
     if (!over || active.id === over.id) return
     const oldIndex = orderingIds.indexOf(String(active.id))
@@ -301,6 +340,9 @@ export function OrderingBoard() {
   const incorrectSet = new Set(incorrectIds)
   const activeLine = activeDragId ? lineById[activeDragId] : undefined
 
+  const rulerLineId = rulerFocusLineId ?? activeDragId
+  const rulerHighlightLevel = rulerLineId != null ? (indentById[rulerLineId] ?? 0) : null
+
   /* Live wall-clock countdown; tick state only forces re-renders every second */
   const hintCooldownSecondsLeft = hintOnCooldown
     // eslint-disable-next-line react-hooks/purity -- derived from Date.now() for button label
@@ -314,7 +356,8 @@ export function OrderingBoard() {
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragStart={handleDragStart}
-        onDragCancel={() => {
+        onDragCancel={(event) => {
+          focusRulerLine(String(event.active.id))
           setActiveDragId(null)
           setActiveDragWidth(null)
         }}
@@ -324,7 +367,7 @@ export function OrderingBoard() {
           <div className={styles.boardTopRow}>
             <div className={styles.boardHintCol}>
               <p className={styles.boardHint}>
-                Drag to reorder lines. Use − / + beside each line for indent (same step as the ticks below).
+                Drag to reorder. Hover a line: the bar above lights up to its indent; − / + change the level.
               </p>
             </div>
             <div className={styles.controlsRow}>
@@ -363,14 +406,20 @@ export function OrderingBoard() {
           <div ref={listBodyRef} className={styles.orderingScroll}>
             <header className={styles.orderingLaneHeader}>
               <h3 className={styles.orderingLaneTitle}>Ordered program</h3>
-              <p className={styles.orderingLaneSubtitle}>Match order and indent depth to the reference solution.</p>
+              <p className={styles.orderingLaneSubtitle}>Reorder lines; indent ticks match the hovered line.</p>
             </header>
-            <div className={styles.rulerAlignRow} aria-hidden="true">
+            <div
+              className={`${styles.rulerAlignRow} ${rulerHighlightLevel !== null ? styles.rulerAlignRowLive : ''}`}
+              aria-hidden="true"
+            >
               <div className={styles.rulerGutterSpacer} />
               <div className={styles.rulerTicksRegion}>
                 <div className={puzzleStyles.indentRuler}>
                   {Array.from({ length: MAX_INDENT + 1 }, (_, i) => (
-                    <div key={i} className={puzzleStyles.indentTick} />
+                    <div
+                      key={i}
+                      className={`${puzzleStyles.indentTick} ${rulerHighlightLevel !== null && i <= rulerHighlightLevel ? puzzleStyles.indentTickActive : ''}`}
+                    />
                   ))}
                 </div>
               </div>
@@ -393,9 +442,12 @@ export function OrderingBoard() {
                       incorrect={incorrectSet.has(id)}
                       isHinted={hintLineId === id}
                       isHintTarget={isHintTarget}
+                      isRulerLineFocused={rulerLineId === id}
                       tooltipOpen={openTooltipId === id}
                       onToggleTooltip={toggleTooltip}
                       onIndentDelta={bumpIndent}
+                      onRowPointerEnter={focusRulerLine}
+                      onRowPointerLeave={scheduleRulerUnfocus}
                     />
                   )
                 })}

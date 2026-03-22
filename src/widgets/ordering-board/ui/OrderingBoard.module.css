@@ -1,7 +1,7 @@
 .board {
-  padding: 20px;
+  padding: 16px;
   display: grid;
-  gap: 14px;
+  gap: 8px;
   min-height: 74vh;
   -webkit-user-select: none;
   user-select: none;
@@ -45,37 +45,44 @@
   background: #f0edb6;
   /* Mirrors PuzzleBoard target lane: header + body padding */
   padding: 0;
-  min-height: 320px;
+  min-height: 220px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
 .orderingLaneHeader {
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(72, 66, 34, 0.16);
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(72, 66, 34, 0.14);
   background: transparent;
 }
 
 .orderingLaneTitle {
   margin: 0;
-  font-size: 0.9rem;
+  font-size: 0.84rem;
   color: var(--color-text);
 }
 
 .orderingLaneSubtitle {
-  margin: 3px 0 0;
+  margin: 2px 0 0;
   color: var(--color-text-muted);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
+  line-height: 1.25;
 }
 
 .rulerAlignRow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 10px 2px;
-  border-bottom: 1px solid rgba(72, 66, 34, 0.1);
-  background: rgba(255, 255, 255, 0.2);
+  gap: 8px;
+  padding: 2px 8px 3px;
+  border-bottom: 1px solid rgba(72, 66, 34, 0.08);
+  background: rgba(255, 255, 255, 0.18);
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.rulerAlignRowLive {
+  background: rgba(59, 130, 246, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
 }
 
 .rulerGutterSpacer {
@@ -92,32 +99,37 @@
 .orderingList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
   max-width: 100%;
-  padding: 10px;
+  padding: 6px 8px 8px;
   flex: 1;
 }
 
 .orderingRow {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  border-radius: 10px;
-  transition: box-shadow 0.15s ease;
+  gap: 6px;
+  border-radius: 8px;
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.orderingRowRulerFocus {
+  background: rgba(255, 255, 255, 0.42);
 }
 
 /* Single-line cards: don’t stretch to match gutter height */
 .orderingLineCard {
   align-self: flex-start;
+  box-shadow: 0 1px 3px rgba(31, 41, 55, 0.08);
 }
 
 .orderingCodeWrap {
-  padding: 2px 8px 3px;
+  padding: 1px 6px 2px;
 }
 
 .orderingCodeText {
-  line-height: 1.28;
-  font-size: 0.9rem;
+  line-height: 1.22;
+  font-size: 0.86rem;
 }
 
 .orderingRowHintTarget {
@@ -144,15 +156,22 @@
   flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 6px 0;
+  gap: 3px;
+  padding: 2px 0;
   pointer-events: auto;
   box-sizing: border-box;
+  border-radius: 8px;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.indentGutterLive {
+  background: rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.28), 0 0 12px rgba(59, 130, 246, 0.15);
 }
 
 .indentStepBtn {
-  width: 26px;
-  height: 24px;
+  width: 25px;
+  height: 22px;
   border-radius: 6px;
   border: 1.5px solid rgba(59, 130, 246, 0.22);
   background: rgba(59, 130, 246, 0.08);
@@ -222,16 +241,16 @@
 }
 
 .hintStrip {
-  min-height: 48px;
-  margin: -2px 0 2px;
+  min-height: 34px;
+  margin: 0;
   box-sizing: border-box;
 }
 
 .hintStripPlaceholder {
-  min-height: 48px;
-  border-radius: 10px;
-  border: 1px dashed rgba(100, 116, 139, 0.35);
-  background: rgba(241, 245, 249, 0.85);
+  min-height: 34px;
+  border-radius: 8px;
+  border: 1px dashed rgba(100, 116, 139, 0.3);
+  background: rgba(241, 245, 249, 0.75);
   box-sizing: border-box;
 }
 
@@ -244,15 +263,15 @@
   color: #244a3e;
   background: #e8faf2;
   border: 1px dashed #77cda6;
-  border-radius: 10px;
-  padding: 8px 10px;
-  font-size: 0.84rem;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.8rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  min-height: 48px;
+  gap: 10px;
+  min-height: 34px;
   box-sizing: border-box;
 }
 
