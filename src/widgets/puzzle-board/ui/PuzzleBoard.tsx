@@ -28,16 +28,20 @@ const MAX_INDENT = 8
 const SLOT_PROXIMITY_PX = 40
 /** Short gaps: use almost full height so the lower third doesn't map to the slot below */
 const GAP_SLOT_FRACTION = 0.98
-/** Taller cards: split closer to midpoint to reduce neighbor bleed */
-const CARD_SLOT_FRACTION = 0.52
+/** Taller cards: upper portion maps to this row; higher = harder to accidentally jump to row below while indenting */
+const CARD_SLOT_FRACTION = 0.66
 /** When dragging the hinted block, expand vertical hit area for the target slot */
 const HINT_TARGET_PAD_PX = 16
+/** Pixels past the mid-gap between rows before we leave the row we started from (reduces swap-while-indenting) */
+const VERTICAL_SLOT_HYSTERESIS_PX = 10
 
 type SlotPickOpts = {
   targetIds: string[]
   activeDragId: string | null
   hintLineId: string | null
   hintTargetSlot: number | null
+  /** If set, pointer must cross mid-gap before slot changes vs this index (target-lane reorder only). */
+  dragSourceSlot: number | null
 }
 
 function computeSlotFromPointer(
@@ -83,12 +87,45 @@ function computeSlotFromPointer(
     }
   }
 
+  let naiveSlot = items[items.length - 1].slot
   for (const { rect, slot, isGap } of items) {
     const frac = isGap ? GAP_SLOT_FRACTION : CARD_SLOT_FRACTION
-    if (pointerY < rect.top + rect.height * frac) return slot
+    if (pointerY < rect.top + rect.height * frac) {
+      naiveSlot = slot
+      break
+    }
   }
 
-  return items[items.length - 1].slot
+  return applyVerticalSlotHysteresis(pointerY, items, naiveSlot, opts.dragSourceSlot)
+}
+
+/** Keep the starting row until the pointer crosses the mid-gap to a neighbor (stops indent drags from swapping rows). */
+function applyVerticalSlotHysteresis(
+  pointerY: number,
+  items: Array<{ rect: DOMRect; slot: number; isGap: boolean }>,
+  naiveSlot: number,
+  dragSourceSlot: number | null,
+): number {
+  if (dragSourceSlot === null || naiveSlot === dragSourceSlot) return naiveSlot
+
+  const idx = items.findIndex((i) => i.slot === dragSourceSlot)
+  if (idx < 0) return naiveSlot
+
+  if (naiveSlot > dragSourceSlot) {
+    const cur = items[idx]
+    const below = items[idx + 1]
+    if (!below) return naiveSlot
+    const midY = (cur.rect.bottom + below.rect.top) / 2
+    if (pointerY < midY + VERTICAL_SLOT_HYSTERESIS_PX) return dragSourceSlot
+    return naiveSlot
+  }
+
+  const cur = items[idx]
+  const above = items[idx - 1]
+  if (!above) return naiveSlot
+  const midY = (above.rect.bottom + cur.rect.top) / 2
+  if (pointerY > midY - VERTICAL_SLOT_HYSTERESIS_PX) return dragSourceSlot
+  return naiveSlot
 }
 
 function useMonacoColorize(code: string, language: string): string {
@@ -384,6 +421,7 @@ export function PuzzleBoard() {
   const setIndent = usePuzzleStore((state) => state.setIndent)
   const checkSolution = usePuzzleStore((state) => state.checkSolution)
   const dismissSolved = usePuzzleStore((state) => state.dismissSolved)
+  const playAgain = usePuzzleStore((state) => state.playAgain)
   const requestHint = usePuzzleStore((state) => state.requestHint)
   const clearHint = usePuzzleStore((state) => state.clearHint)
   const undo = usePuzzleStore((state) => state.undo)
@@ -462,11 +500,17 @@ export function PuzzleBoard() {
     }
   }
 
+  const dragSourceSlot =
+    activeDragId !== null && targetIds.includes(activeDragId)
+      ? targetIds.indexOf(activeDragId)
+      : null
+
   const slotPickOpts: SlotPickOpts = {
     targetIds,
     activeDragId,
     hintLineId,
     hintTargetSlot,
+    dragSourceSlot,
   }
 
   function handleDragMove(event: DragMoveEvent) {
@@ -738,9 +782,14 @@ export function PuzzleBoard() {
           <div className={styles.modalCard}>
             <h3 className={styles.modalTitle}>Great work, puzzle solved.</h3>
             <p className={styles.modalText}>Your line order and indentation are correct.</p>
-            <button type="button" className={styles.modalButton} onClick={dismissSolved}>
-              Continue
-            </button>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.modalButtonPrimary} onClick={playAgain}>
+                Play again
+              </button>
+              <button type="button" className={styles.modalButtonSecondary} onClick={dismissSolved}>
+                Continue
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

@@ -54,19 +54,17 @@ One extra runtime command, but accurate parity for API behavior.
 ## 4) Generation Reliability and Error Transparency
 
 ### Challenge
-Model responses were occasionally malformed or too slow, and fallback behavior could hide real problems.
+The assignment requires **per-line explanations pre-generated at the same time as the code** (one user-facing generation step, not a second client round-trip after the puzzle appears).
 
 ### Decision
-Use a two-stage generation pipeline and remove fallback masking.
+Use a **single `/api/generate` request** that returns `lines[]` with both `code` and `explanation`. Prefer **one OpenAI structured JSON** response (`lines[].code` + `lines[].explanation`). If that parse fails, fall back inside the **same handler** to plain code plus a **batched explain** model call so the HTTP response is still complete before the UI shows the board.
 
 ### What Was Implemented
-- Stage 1: fast code generation endpoint returns line blocks quickly.
-- Stage 2: explanation endpoint runs separately and updates explanations asynchronously.
-- Fallback puzzle generation removed by policy.
-- Errors surfaced clearly to UI and user.
+- `api/generate.ts`: JSON-first path, shared line normalization (incl. Python `#` handling), server-side explain fallback, no separate client call to `/api/explain` for gameplay.
+- Client: only `generatePuzzle` → `setLines` when loading finishes.
 
 ### Tradeoff
-More moving parts than a single endpoint, but significantly better perceived performance and debugging clarity.
+Slightly longer wait before the puzzle appears vs. showing code first — aligns with instructor feedback preferring simplicity over split UX.
 
 ## 5) Validation Correctness and Gameplay Completion
 
@@ -287,7 +285,7 @@ The free-form list approach only let users place blocks at positions 0 through N
 - `computeSlotFromPointer` iterates all `[data-slot-index]` elements by Y midpoint to find the target slot.
 - `validatePuzzle` filters out gap IDs before checking solution correctness.
 - `requestHint` filters out gap IDs before comparing placed order.
-- Removed `isExplaining` background message (unnecessary UX noise).
+- Removed separate client-side “explaining” phase; explanations arrive with `setLines` from `/api/generate`.
 
 ### Tradeoff
 Solution area always shows N slots (including empties), which takes more vertical space. But users get full placement freedom and clear visual affordance for every available position.
@@ -337,7 +335,7 @@ The dragged block doesn't visually snap during movement (follows cursor freely),
 
 - Progressive commit discipline over large one-shot changes.
 - Modular architecture over ad hoc coupling.
-- Two-stage generation over single slow endpoint.
+- Single `/api/generate` payload (code + explanations) over a separate client `/api/explain` round-trip.
 - No silent fallback behavior; explicit error surfacing.
 - Store-centered gameplay logic for predictability.
 - Stability-first drag rendering over heavyweight editors in cards.
@@ -408,7 +406,10 @@ Add a proximity guard: if the pointer is more than 40px above the first slot or 
 - `handleDragMove` clears preview if no slot detected; `handleDragEnd` skips move if no slot.
 
 ### Iteration — gaps vs cards and hint-aware targeting
-Using a single **65%** of row height for every slot made **short gap** rows map their lower third to the **next** slot down, so drops beside a hinted gap often snapped to the wrong row. **Gap** rows now use **~98%** of their height; **card** rows use **~52%** (closer to a midpoint split). When the dragged block is the **hinted** line (`activeId === hintLineId`) and `hintTargetSlot` is set, the pointer Y is mapped to that slot if it falls within the target row’s rect **plus vertical padding**, making the green target easier to hit without neighbors stealing the drop.
+Using a single **65%** of row height for every slot made **short gap** rows map their lower third to the **next** slot down, so drops beside a hinted gap often snapped to the wrong row. **Gap** rows now use **~98%** of their height; **card** rows use a **taller upper band** (~66%) so horizontal indent tweaks don’t immediately map to the row below. When the dragged block is the **hinted** line (`activeId === hintLineId`) and `hintTargetSlot` is set, the pointer Y is mapped to that slot if it falls within the target row’s rect **plus vertical padding**, making the green target easier to hit without neighbors stealing the drop.
+
+### Vertical hysteresis when reordering in the solution
+Pure Y-fraction picking still let **small vertical drift while dragging sideways for indent** jump to the next slot. **`applyVerticalSlotHysteresis`**: if the line was already in the solution (`dragSourceSlot`), keep that slot until the pointer crosses the **midpoint between rows** (plus a few pixels), so row changes require deliberate vertical movement.
 
 ## 23) Vercel Deployment
 
@@ -416,10 +417,10 @@ Using a single **65%** of row height for every slot made **short gap** rows map 
 The spec requires deployment on Vercel. The project has Vite for the client build and serverless API routes (`/api/generate`, `/api/explain`) that use `@vercel/node`.
 
 ### Decision
-Add a `vercel.json` config that sets the build command, output directory, and SPA rewrites. The `/api/*` routes are handled by Vercel Serverless Functions (already in the correct `/api` directory convention).
+Add a `vercel.json` config that sets the build command, output directory, and **API-only** rewrites. A catch-all `/(.*) → /index.html` SPA rewrite breaks **`vercel dev`**: Vercel proxies rewrite Vite module URLs (`/src/...`, `/@vite/...`) to HTML, so Vite throws *import analysis* errors on `index.html`. This app only mounts at `/`, so production still serves `index.html` at `/` without that rewrite.
 
 ### What Was Implemented
-- `vercel.json` with `buildCommand`, `outputDirectory`, and `rewrites` (API pass-through + SPA fallback).
+- `vercel.json` with `buildCommand`, `outputDirectory`, and `rewrites` for `/api/*` only.
 - `@vercel/node` added as a dev dependency for type safety.
 - `highlight.js` removed (replaced by Monaco in section 7).
 - Production deployment via `vercel --prod`.

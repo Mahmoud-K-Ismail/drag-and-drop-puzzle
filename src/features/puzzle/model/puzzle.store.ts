@@ -34,7 +34,6 @@ type PuzzleState = {
   indentById: Record<string, number>
   hasStarted: boolean
   isLoading: boolean
-  isExplaining: boolean
   incorrectIds: string[]
   isSolved: boolean
   hintMessage: string | null
@@ -46,18 +45,18 @@ type PuzzleState = {
   future: PuzzleSnapshot[]
   error: string | null
   setLines: (lines: PuzzleLine[], language: string) => void
-  setLineExplanations: (items: Array<{ id: string; explanation: string }>) => void
   moveLine: (activeId: string, overContainer: 'source' | 'target', slotIndex?: number) => void
   setIndent: (id: string, indent: number) => void
   checkSolution: () => void
   dismissSolved: () => void
+  /** Same puzzle lines, reshuffled bank + empty solution slots (after solve or anytime). */
+  playAgain: () => void
   requestHint: () => void
   clearHint: () => void
   undo: () => void
   redo: () => void
   setStarted: (hasStarted: boolean) => void
   setLoading: (isLoading: boolean) => void
-  setExplaining: (isExplaining: boolean) => void
   setError: (error: string | null) => void
 }
 
@@ -93,7 +92,6 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
   indentById: {},
   hasStarted: false,
   isLoading: false,
-  isExplaining: false,
   incorrectIds: [],
   isSolved: false,
   hintMessage: null,
@@ -123,18 +121,6 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
       past: [],
       future: [],
       error: null,
-    })
-  },
-  setLineExplanations: (items) => {
-    set((state) => {
-      const byId = new Map(items.map((item) => [item.id, item.explanation]))
-      return {
-        ...state,
-        lines: state.lines.map((line) => ({
-          ...line,
-          explanation: byId.get(line.id) ?? line.explanation,
-        })),
-      }
     })
   },
   moveLine: (activeId, overContainer, slotIndex) => {
@@ -233,6 +219,28 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
     })
   },
   dismissSolved: () => set({ isSolved: false }),
+  playAgain: () => {
+    set((state) => {
+      if (state.lines.length === 0) return state
+      const sourceIds = shuffleIds(state.lines.map((line) => line.id))
+      const targetIds = state.lines.map(() => createGapId())
+      return {
+        ...state,
+        sourceIds,
+        targetIds,
+        indentById: {},
+        incorrectIds: [],
+        isSolved: false,
+        hintMessage: null,
+        hintLineId: null,
+        hintDirection: null,
+        hintTargetSlot: null,
+        hintCooldownUntil: 0,
+        past: [],
+        future: [],
+      }
+    })
+  },
   requestHint: () => {
     set((state) => {
       const now = Date.now()
@@ -374,6 +382,5 @@ export const usePuzzleStore = create<PuzzleState>((set) => ({
   },
   setStarted: (hasStarted) => set({ hasStarted }),
   setLoading: (isLoading) => set({ isLoading }),
-  setExplaining: (isExplaining) => set({ isExplaining }),
   setError: (error) => set({ error }),
 }))

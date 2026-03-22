@@ -4,7 +4,8 @@ import {
   type GeneratedPuzzle,
 } from '../contracts/puzzle.schema'
 
-const GENERATE_TIMEOUT_MS = 45000
+/** Code + per-line explanations in one call can exceed 45s on slow networks; align with Vercel maxDuration where possible. */
+const GENERATE_TIMEOUT_MS = 120_000
 
 export async function generatePuzzle(request: {
   apiKey: string
@@ -53,7 +54,9 @@ export async function generatePuzzle(request: {
     return generatedPuzzleSchema.parse(data)
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('Generation timed out after 45 seconds. Try a shorter prompt or simpler constraints.')
+      throw new Error(
+        'Generation timed out after 2 minutes. Try again, use a shorter prompt, or check your network and API key.',
+      )
     }
 
     throw error

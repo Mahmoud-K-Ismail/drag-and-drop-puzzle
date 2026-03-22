@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { type SupportedLanguage, useSetupStore } from '../../../features/setup/model/setup.store'
 import { usePuzzleStore } from '../../../features/puzzle/model/puzzle.store'
 import { generatePuzzle } from '../../../shared/api/openai/generatePuzzle'
-import { generateExplanations } from '../../../shared/api/openai/generateExplanations'
 import styles from './SetupPanel.module.css'
 
 const examples = [
@@ -22,9 +21,8 @@ const languages = [
 
 const loadingMessages = [
   'Connecting to model...',
-  'Generating concise solution...',
-  'Preparing draggable line blocks...',
-  'Attaching line-by-line explanations...',
+  'Generating code and line-by-line explanations...',
+  'Preparing draggable puzzle blocks...',
 ]
 
 export function SetupPanel() {
@@ -38,8 +36,7 @@ export function SetupPanel() {
     setSelectedExample,
     setSelectedLanguage,
   } = useSetupStore()
-  const { setLines, setLineExplanations, isLoading, setLoading, error, setError, setStarted, setExplaining } =
-    usePuzzleStore()
+  const { setLines, isLoading, setLoading, error, setError, setStarted } = usePuzzleStore()
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0)
 
   const selectedValue = useMemo(() => (selectedExample.length > 0 ? selectedExample : ''), [selectedExample])
@@ -68,26 +65,9 @@ export function SetupPanel() {
         language: selectedLanguage,
       })
       setLines(puzzle.lines, puzzle.language)
-
-      setExplaining(true)
-      void generateExplanations({
-        apiKey,
-        language: puzzle.language,
-        lines: puzzle.lines.map((line) => ({ id: line.id, code: line.code })),
-      })
-        .then((items) => {
-          setLineExplanations(items)
-        })
-        .catch(() => {
-          // Keep gameplay flow running even if explanations fail.
-        })
-        .finally(() => {
-          setExplaining(false)
-        })
     } catch (generationError) {
       const message = generationError instanceof Error ? generationError.message : 'Failed to generate puzzle.'
       setError(message)
-      setExplaining(false)
     } finally {
       setLoading(false)
     }
