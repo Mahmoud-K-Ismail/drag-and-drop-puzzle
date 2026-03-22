@@ -90,10 +90,6 @@ function OrderingLineCard({
     transform: CSS.Transform.toString(transform),
     transition,
     marginLeft: `${indent * INDENT_STEP}px`,
-    flex: '0 1 auto',
-    width: 'min(100%, 40rem)',
-    maxWidth: '100%',
-    minWidth: 0,
     opacity: isDragging ? 0.35 : 1,
   }
 
@@ -142,37 +138,35 @@ function OrderingLineCard({
         {...attributes}
         {...listeners}
       >
-        {/* Inline chrome (not position:absolute) so ? stays inside the white card with dnd-kit transforms */}
-        <div className={styles.orderingCardInner}>
-          <div className={styles.orderingHelpRow}>
-            <div className={`${styles.orderingHelpWrap} ${tooltipOpen ? styles.orderingHelpWrapOpen : ''}`}>
-              <button
-                className={puzzleStyles.infoButton}
-                type="button"
-                aria-label="Show explanation for this line"
-                aria-expanded={tooltipOpen}
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onToggleTooltip(id)
-                }}
-              >
-                ?
-              </button>
-              {tooltipOpen ? (
-                <div
-                  className={puzzleStyles.explanationTooltip}
-                  onPointerDown={(e) => e.stopPropagation()}
-                >
-                  {explanation || 'No explanation.'}
-                </div>
-              ) : null}
-            </div>
-          </div>
+        {/* One tight row: code + ? (avoids tall cards and full-width bars) */}
+        <div className={styles.orderingCodeMetaRow}>
           <div className={`${puzzleStyles.codeContainer} ${styles.orderingCodeWrap}`}>
             <pre className={`${puzzleStyles.codeText} ${styles.orderingCodeText}`}>
               <code dangerouslySetInnerHTML={{ __html: highlightedCode || escapeHtml(code) }} />
             </pre>
+          </div>
+          <div className={`${styles.orderingHelpWrap} ${tooltipOpen ? styles.orderingHelpWrapOpen : ''}`}>
+            <button
+              className={puzzleStyles.infoButton}
+              type="button"
+              aria-label="Show explanation for this line"
+              aria-expanded={tooltipOpen}
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={(event) => {
+                event.stopPropagation()
+                onToggleTooltip(id)
+              }}
+            >
+              ?
+            </button>
+            {tooltipOpen ? (
+              <div
+                className={puzzleStyles.explanationTooltip}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                {explanation || 'No explanation.'}
+              </div>
+            ) : null}
           </div>
         </div>
       </article>
@@ -234,7 +228,8 @@ export function OrderingBoard() {
   const scheduleRulerUnfocus = useCallback(() => {
     if (rulerLeaveTimerRef.current) clearTimeout(rulerLeaveTimerRef.current)
     rulerLeaveTimerRef.current = setTimeout(() => {
-      setRulerFocusLineId(null)
+      const first = usePuzzleStore.getState().orderingIds[0] ?? null
+      setRulerFocusLineId(first)
       rulerLeaveTimerRef.current = null
     }, 220)
   }, [])
@@ -245,6 +240,17 @@ export function OrderingBoard() {
     },
     [],
   )
+
+  useEffect(() => {
+    if (orderingIds.length === 0) {
+      setRulerFocusLineId(null)
+      return
+    }
+    setRulerFocusLineId((prev) => {
+      if (prev != null && orderingIds.includes(prev)) return prev
+      return orderingIds[0]
+    })
+  }, [orderingIds])
 
   const bumpIndent = useCallback(
     (id: string, delta: number) => {
@@ -381,7 +387,7 @@ export function OrderingBoard() {
           <div className={styles.boardTopRow}>
             <div className={styles.boardHintCol}>
               <p className={styles.boardHint}>
-                Drag to reorder. Hover a line: the bar above lights up to its indent; − / + change the level.
+                Drag to reorder compact lines. Indent ticks follow the hovered line (defaults to the first); − / + adjust level.
               </p>
             </div>
             <div className={styles.controlsRow}>
