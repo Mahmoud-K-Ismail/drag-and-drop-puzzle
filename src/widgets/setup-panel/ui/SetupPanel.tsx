@@ -2,13 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { type SupportedLanguage, useSetupStore } from '../../../features/setup/model/setup.store'
 import { usePuzzleStore } from '../../../features/puzzle/model/puzzle.store'
 import { generatePuzzle } from '../../../shared/api/openai/generatePuzzle'
+import { QUICK_EXAMPLES } from '../../../shared/config/quickExamples'
 import styles from './SetupPanel.module.css'
-
-const examples = [
-  'Write a function that uses a while loop to generate a fibonacci sequence.',
-  'Write a function that checks if a string is a palindrome.',
-  'Write a function that returns the factorial of a number using recursion.',
-]
 
 const languages = [
   { value: 'auto', label: 'Auto-detect from prompt' },
@@ -168,7 +163,7 @@ export function SetupPanel() {
           onChange={(event) => handleExampleChange(event.target.value)}
         >
           <option value="">Select an example...</option>
-          {examples.map((example) => (
+          {QUICK_EXAMPLES.map((example) => (
             <option key={example} value={example}>
               {example}
             </option>
