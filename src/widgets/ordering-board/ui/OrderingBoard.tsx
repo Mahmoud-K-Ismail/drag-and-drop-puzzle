@@ -161,7 +161,7 @@ function OrderingLineCard({
             </button>
             {tooltipOpen ? (
               <div
-                className={puzzleStyles.explanationTooltip}
+                className={`${puzzleStyles.explanationTooltip} ${styles.orderingExplanationTooltip}`}
                 onPointerDown={(e) => e.stopPropagation()}
               >
                 {explanation || 'No explanation.'}

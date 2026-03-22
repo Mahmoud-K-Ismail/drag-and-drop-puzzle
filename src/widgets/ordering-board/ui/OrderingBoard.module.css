@@ -54,7 +54,8 @@
   min-height: 0;
   height: fit-content;
   max-height: none;
-  overflow: hidden;
+  /* allow line explanation popovers to extend past the yellow box edges */
+  overflow: visible;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -162,6 +163,29 @@
 
 .orderingHelpWrapOpen {
   z-index: 2600;
+}
+
+/* Center under ? — default right:0 grows left and gets clipped by narrow / left-aligned cards */
+.orderingHelpWrap .orderingExplanationTooltip {
+  top: calc(100% + 8px);
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, 0);
+  width: min(280px, calc(100vw - 32px));
+  min-width: 0;
+  animation: orderingTipFade 0.15s ease forwards;
+}
+
+@keyframes orderingTipFade {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .orderingCodeWrap {
