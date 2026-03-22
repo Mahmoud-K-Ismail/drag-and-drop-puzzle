@@ -31,10 +31,12 @@ export function SetupPanel() {
     prompt,
     selectedExample,
     selectedLanguage,
+    generationLayoutMode,
     setApiKey,
     setPrompt,
     setSelectedExample,
     setSelectedLanguage,
+    setGenerationLayoutMode,
   } = useSetupStore()
   const { setLines, isLoading, setLoading, error, setError, setStarted } = usePuzzleStore()
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0)
@@ -64,7 +66,7 @@ export function SetupPanel() {
         prompt,
         language: selectedLanguage,
       })
-      setLines(puzzle.lines, puzzle.language)
+      setLines(puzzle.lines, puzzle.language, generationLayoutMode)
     } catch (generationError) {
       const message = generationError instanceof Error ? generationError.message : 'Failed to generate puzzle.'
       setError(message)
@@ -124,6 +126,39 @@ export function SetupPanel() {
           ))}
         </select>
       </label>
+
+      <div className={styles.layoutSwitchRow}>
+        <span className={styles.layoutSwitchLabel} id="layout-mode-label">
+          After generate, play as
+        </span>
+        <div
+          className={styles.layoutSwitch}
+          role="group"
+          aria-labelledby="layout-mode-label"
+        >
+          <button
+            type="button"
+            className={`${styles.layoutSwitchOption} ${generationLayoutMode === 'puzzle' ? styles.layoutSwitchOptionActive : ''}`}
+            aria-pressed={generationLayoutMode === 'puzzle'}
+            onClick={() => setGenerationLayoutMode('puzzle')}
+          >
+            Two-lane puzzle
+          </button>
+          <button
+            type="button"
+            className={`${styles.layoutSwitchOption} ${generationLayoutMode === 'ordering' ? styles.layoutSwitchOptionActive : ''}`}
+            aria-pressed={generationLayoutMode === 'ordering'}
+            onClick={() => setGenerationLayoutMode('ordering')}
+          >
+            Order list
+          </button>
+        </div>
+        <p className={styles.layoutSwitchHint}>
+          {generationLayoutMode === 'puzzle'
+            ? 'Code bank + solution slots (drag between columns).'
+            : 'One shuffled list — reorder lines and set indent with − / +.'}
+        </p>
+      </div>
 
       <label className={styles.label}>
         Quick Examples

@@ -3,15 +3,20 @@ import { readApiKeyFromStorage, writeApiKeyToStorage } from '../../../shared/lib
 
 export type SupportedLanguage = 'auto' | 'javascript' | 'typescript' | 'python' | 'java' | 'cpp'
 
+/** Chosen before Generate; applied when the puzzle is created. */
+export type GenerationLayoutMode = 'puzzle' | 'ordering'
+
 type SetupState = {
   apiKey: string
   prompt: string
   selectedExample: string
   selectedLanguage: SupportedLanguage
+  generationLayoutMode: GenerationLayoutMode
   setApiKey: (apiKey: string) => void
   setPrompt: (prompt: string) => void
   setSelectedExample: (value: string) => void
   setSelectedLanguage: (language: SupportedLanguage) => void
+  setGenerationLayoutMode: (mode: GenerationLayoutMode) => void
 }
 
 export const useSetupStore = create<SetupState>((set) => ({
@@ -19,6 +24,7 @@ export const useSetupStore = create<SetupState>((set) => ({
   prompt: '',
   selectedExample: '',
   selectedLanguage: 'auto',
+  generationLayoutMode: 'puzzle',
   setApiKey: (apiKey) => {
     writeApiKeyToStorage(apiKey)
     set({ apiKey })
@@ -26,4 +32,5 @@ export const useSetupStore = create<SetupState>((set) => ({
   setPrompt: (prompt) => set({ prompt }),
   setSelectedExample: (selectedExample) => set({ selectedExample }),
   setSelectedLanguage: (selectedLanguage) => set({ selectedLanguage }),
+  setGenerationLayoutMode: (generationLayoutMode) => set({ generationLayoutMode }),
 }))

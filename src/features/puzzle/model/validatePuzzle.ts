@@ -1,11 +1,15 @@
 import type { PuzzleLine } from './puzzle.store'
 import { isGapId } from './puzzle.store'
 
+export type PuzzleLayoutMode = 'puzzle' | 'ordering'
+
 type ValidationInput = {
   lines: PuzzleLine[]
   targetIds: string[]
   sourceIds: string[]
   indentById: Record<string, number>
+  layoutMode: PuzzleLayoutMode
+  orderingIds: string[]
 }
 
 type ValidationResult = {
@@ -48,15 +52,11 @@ function sameMultiset(a: number[], b: number[]) {
   return true
 }
 
-export function validatePuzzle(input: ValidationInput): ValidationResult {
-  const { lines, targetIds, sourceIds, indentById } = input
-
-  const placedIds = targetIds.filter((id) => !isGapId(id))
-
-  if (sourceIds.length > 0 || placedIds.length !== lines.length) {
-    return { incorrectIds: [...placedIds], isSolved: false }
-  }
-
+function validatePlacedOrder(
+  lines: PuzzleLine[],
+  placedIds: string[],
+  indentById: Record<string, number>,
+): ValidationResult {
   const lineById = Object.fromEntries(lines.map((line) => [line.id, line]))
   const expected = [...lines].sort((a, b) => a.targetLine - b.targetLine)
 
@@ -120,4 +120,23 @@ export function validatePuzzle(input: ValidationInput): ValidationResult {
     incorrectIds: [...incorrect],
     isSolved: incorrect.size === 0,
   }
+}
+
+export function validatePuzzle(input: ValidationInput): ValidationResult {
+  const { lines, targetIds, sourceIds, indentById, layoutMode, orderingIds } = input
+
+  if (layoutMode === 'ordering') {
+    if (orderingIds.length !== lines.length) {
+      return { incorrectIds: [...orderingIds], isSolved: false }
+    }
+    return validatePlacedOrder(lines, orderingIds, indentById)
+  }
+
+  const placedIds = targetIds.filter((id) => !isGapId(id))
+
+  if (sourceIds.length > 0 || placedIds.length !== lines.length) {
+    return { incorrectIds: [...placedIds], isSolved: false }
+  }
+
+  return validatePlacedOrder(lines, placedIds, indentById)
 }

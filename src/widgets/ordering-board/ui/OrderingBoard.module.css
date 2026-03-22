@@ -1,0 +1,273 @@
+.board {
+  padding: 20px;
+  display: grid;
+  gap: 14px;
+  min-height: 74vh;
+  -webkit-user-select: none;
+  user-select: none;
+  background: linear-gradient(180deg, rgba(243, 247, 252, 0.95) 0%, rgba(236, 241, 248, 0.95) 100%);
+}
+
+.boardTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+}
+
+.boardHint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.controlsRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: end;
+}
+
+.orderingScroll {
+  border: 1px solid #cfd3db;
+  border-radius: 14px;
+  background: #f0edb6;
+  padding: 10px;
+  min-height: 320px;
+}
+
+.orderingList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.orderingRow {
+  position: relative;
+  border-radius: 10px;
+  transition: box-shadow 0.15s ease;
+}
+
+.orderingRowHintTarget {
+  box-shadow: 0 0 0 2.5px #26b785, 0 0 14px rgba(38, 183, 133, 0.35);
+  animation: hintTargetPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes hintTargetPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2.5px #26b785, 0 0 14px rgba(38, 183, 133, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 3px #26b785, 0 0 22px rgba(38, 183, 133, 0.5);
+  }
+}
+
+.indentControls {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.indentBtn {
+  width: 26px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  background: rgba(255, 255, 255, 0.95);
+  color: #1d4ed8;
+  font-weight: 800;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.indentBtn:hover {
+  background: #eff6ff;
+}
+
+.indentBtn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+/* Reuse PuzzleBoard control + modal styles via duplicate class names where needed — import below */
+
+.ghostButton {
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+}
+
+.undoButton {
+  background: linear-gradient(90deg, #2033c5 0%, #2b45d8 100%);
+}
+
+.redoButton {
+  background: linear-gradient(90deg, #2e79bb 0%, #4193d4 100%);
+}
+
+.hintButton {
+  background: linear-gradient(90deg, #26b785 0%, #45c79b 100%);
+}
+
+.ghostButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.checkButton {
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: linear-gradient(90deg, #a415af 0%, #c127c8 100%);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(160, 21, 175, 0.24);
+}
+
+.hintStrip {
+  min-height: 48px;
+  margin: -2px 0 2px;
+  box-sizing: border-box;
+}
+
+.hintStripPlaceholder {
+  min-height: 48px;
+  border-radius: 10px;
+  border: 1px dashed rgba(100, 116, 139, 0.35);
+  background: rgba(241, 245, 249, 0.85);
+  box-sizing: border-box;
+}
+
+.hintStripActive .hintText {
+  margin: 0;
+}
+
+.hintText {
+  margin: 0;
+  color: #244a3e;
+  background: #e8faf2;
+  border: 1px dashed #77cda6;
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.84rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+.hintDismiss {
+  font-size: 0.72rem;
+  color: #77cda6;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.loadingWrap {
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.loadingTitle {
+  margin: 0;
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.loadingSubtitle {
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.empty {
+  margin: 20px;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border);
+  border-radius: 14px;
+  padding: 24px;
+  background: rgba(255, 255, 255, 0.78);
+  font-weight: 600;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.45);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 25;
+}
+
+.modalCard {
+  width: min(420px, 100%);
+  border-radius: 14px;
+  border: 1px solid rgba(15, 118, 110, 0.25);
+  background: #ffffff;
+  padding: 18px;
+  box-shadow: 0 18px 30px rgba(15, 23, 42, 0.2);
+}
+
+.modalTitle {
+  margin: 0;
+  color: var(--color-text);
+}
+
+.modalText {
+  margin: 8px 0 0;
+  color: var(--color-text-muted);
+}
+
+.modalActions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: stretch;
+}
+
+.modalActions button {
+  flex: 1;
+  min-width: 120px;
+}
+
+.modalButtonPrimary {
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: linear-gradient(90deg, #26b785 0%, #45c79b 100%);
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(38, 183, 133, 0.28);
+}
+
+.modalButtonSecondary {
+  border: 1px solid var(--color-border);
+  background: #f8fafc;
+  color: var(--color-text);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}

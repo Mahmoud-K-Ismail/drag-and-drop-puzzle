@@ -425,7 +425,23 @@ Add a `vercel.json` config that sets the build command, output directory, and **
 - `highlight.js` removed (replaced by Monaco in section 7).
 - Production deployment via `vercel --prod`.
 
-## 24) Open Follow-Ups
+## 24) Dual gameplay layout (two-lane vs ordering)
+
+### Challenge
+Some users may prefer the original **code bank + solution slots** puzzle; others may find a **single shuffled list** easier (reorder only, same validation rules).
+
+### Decision
+Let the user pick **before Generate** via a segmented control in the setup panel. The choice is stored in setup state (`generationLayoutMode`) and passed into `setLines` so the puzzle store initializes either `sourceIds`/`targetIds` or `orderingIds`. `PlaygroundPage` renders `PuzzleBoard` or `OrderingBoard` from `layoutMode`. Shared hint arrow overlay supports `data-slot-index` vs `data-order-index`.
+
+### What Was Implemented
+- `validatePuzzle`: `layoutMode` branch; ordering checks full `orderingIds` sequence and indents.
+- `puzzle.store`: `reorderOrdering`, `moveLine` no-op in ordering mode, hints/check/playAgain/undo aware of both layouts.
+- `OrderingBoard` widget + `HintArrowOverlay` extraction from `PuzzleBoard`.
+
+### Tradeoff
+Two UIs to maintain, but one API contract and one validation core.
+
+## 25) Open Follow-Ups
 
 - Resolve remaining lint issues in puzzle store strings/escaping.
 - Optional: add automated tests around validation, hint cooldown, and history transitions.
