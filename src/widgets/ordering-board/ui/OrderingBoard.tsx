@@ -98,6 +98,7 @@ function OrderingLineCard({
   return (
     <div
       className={`${styles.orderingRow} ${isHintTarget ? styles.orderingRowHintTarget : ''} ${isRulerLineFocused ? styles.orderingRowRulerFocus : ''}`}
+      data-ordering-row=""
       data-order-index={orderIndex}
       onPointerEnter={() => onRowPointerEnter(id)}
       onPointerLeave={() => onRowPointerLeave()}
@@ -318,8 +319,14 @@ export function OrderingBoard() {
     setOpenTooltipId(null)
     const id = String(event.active.id)
     setActiveDragId(id)
-    setActiveDragWidth(event.active.rect.current.initial?.width ?? null)
     focusRulerLine(id)
+    /* useSortable + max-content cards: rect.initial.width is often wrong; measure the real row */
+    const block = document.querySelector(`[data-block-id="${id}"]`) as HTMLElement | null
+    const row = block?.closest('[data-ordering-row]') as HTMLElement | null
+    const fromDom = row?.getBoundingClientRect().width
+    const fromKit = event.active.rect.current.initial?.width
+    const w = fromDom && fromDom > 8 ? fromDom : (fromKit && fromKit > 8 ? fromKit : null)
+    setActiveDragWidth(w)
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -479,20 +486,35 @@ export function OrderingBoard() {
 
         <DragOverlay zIndex={2000} dropAnimation={null}>
           {activeLine ? (
-            <article
-              className={`${puzzleStyles.card} ${puzzleStyles.cardDragging} ${puzzleStyles.overlayCard}`}
-              style={{ width: activeDragWidth ? `${activeDragWidth}px` : undefined }}
+            <div
+              className={styles.orderingDragOverlayRow}
+              style={activeDragWidth ? { width: `${Math.round(activeDragWidth)}px`, maxWidth: 'min(100vw - 24px, 100%)' } : undefined}
             >
-              <div className={puzzleStyles.codeContainer}>
-                <pre className={puzzleStyles.codeText}>
-                  <code
-                    dangerouslySetInnerHTML={{
-                      __html: colorizeCache.get(`${toMonacoLanguage(language)}:${activeLine.code}`) || escapeHtml(activeLine.code),
-                    }}
-                  />
-                </pre>
+              <div className={`${styles.indentGutter} ${styles.orderingDragOverlayGutter}`} aria-hidden>
+                <span className={styles.orderingDragGutterFaint}>−</span>
+                <span className={styles.orderingDragGutterFaint}>+</span>
               </div>
-            </article>
+              <article
+                className={`${puzzleStyles.card} ${styles.orderingLineCard} ${puzzleStyles.cardDragging} ${puzzleStyles.overlayCard} ${styles.orderingDragOverlayArticle}`}
+              >
+                <div className={styles.orderingCodeMetaRow}>
+                  <div className={`${puzzleStyles.codeContainer} ${styles.orderingCodeWrap}`}>
+                    <pre className={`${puzzleStyles.codeText} ${styles.orderingCodeText}`}>
+                      <code
+                        dangerouslySetInnerHTML={{
+                          __html: colorizeCache.get(`${toMonacoLanguage(language)}:${activeLine.code}`) || escapeHtml(activeLine.code),
+                        }}
+                      />
+                    </pre>
+                  </div>
+                  <div className={styles.orderingHelpWrap} aria-hidden>
+                    <button type="button" className={puzzleStyles.infoButton} tabIndex={-1} disabled>
+                      ?
+                    </button>
+                  </div>
+                </div>
+              </article>
+            </div>
           ) : null}
         </DragOverlay>
       </DndContext>
