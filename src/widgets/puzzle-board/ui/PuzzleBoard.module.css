@@ -28,11 +28,18 @@
   gap: 12px;
 }
 
+.boardHintCol {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: min(100%, 22rem);
+}
+
 .controlsRow {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: end;
+  flex-shrink: 0;
 }
 
 .ghostButton {
@@ -592,7 +599,12 @@
     align-items: stretch;
   }
 
+  .boardHintCol {
+    max-width: none;
+  }
+
   .controlsRow {
+    flex-wrap: wrap;
     justify-content: stretch;
   }
 

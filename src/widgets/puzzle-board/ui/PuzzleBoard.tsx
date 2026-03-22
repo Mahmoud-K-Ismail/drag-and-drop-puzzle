@@ -571,7 +571,7 @@ export function PuzzleBoard() {
       >
         <section className={styles.board}>
           <div className={styles.boardTopRow}>
-            <div>
+            <div className={styles.boardHintCol}>
               <p className={styles.boardHint}>Drag blocks from left to right, then fine-tune indentation in the solution area.</p>
             </div>
             <div className={styles.controlsRow}>

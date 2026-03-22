@@ -128,7 +128,7 @@ function OrderingLineCard({
         ref={setNodeRef}
         style={style}
         data-block-id={id}
-        className={`${puzzleStyles.card} ${isDragging ? puzzleStyles.cardDragging : ''} ${incorrect ? puzzleStyles.cardIncorrect : ''} ${isHinted ? puzzleStyles.cardHinted : ''}`}
+        className={`${puzzleStyles.card} ${styles.orderingLineCard} ${isDragging ? puzzleStyles.cardDragging : ''} ${incorrect ? puzzleStyles.cardIncorrect : ''} ${isHinted ? puzzleStyles.cardHinted : ''}`}
         {...attributes}
         {...listeners}
       >
@@ -154,8 +154,8 @@ function OrderingLineCard({
             </div>
           ) : null}
         </div>
-        <div className={puzzleStyles.codeContainer}>
-          <pre className={puzzleStyles.codeText}>
+        <div className={`${puzzleStyles.codeContainer} ${styles.orderingCodeWrap}`}>
+          <pre className={`${puzzleStyles.codeText} ${styles.orderingCodeText}`}>
             <code dangerouslySetInnerHTML={{ __html: highlightedCode || escapeHtml(code) }} />
           </pre>
         </div>
@@ -322,9 +322,9 @@ export function OrderingBoard() {
       >
         <section className={styles.board}>
           <div className={styles.boardTopRow}>
-            <div>
+            <div className={styles.boardHintCol}>
               <p className={styles.boardHint}>
-                Drag lines to reorder. Use − / + in the left gutter to step indentation — same spacing as the guide ticks below.
+                Drag to reorder lines. Use − / + beside each line for indent (same step as the ticks below).
               </p>
             </div>
             <div className={styles.controlsRow}>

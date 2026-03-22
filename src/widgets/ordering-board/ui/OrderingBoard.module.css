@@ -15,6 +15,13 @@
   gap: 12px;
 }
 
+/* Cap hint width so Undo/Redo/Hint/Check stay on one row (matches two-lane toolbar) */
+.boardHintCol {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: min(100%, 22rem);
+}
+
 .boardHint {
   margin: 0;
   color: var(--color-text-muted);
@@ -25,13 +32,14 @@
 .controlsRow {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: end;
+  flex-shrink: 0;
 }
 
 .orderingScroll {
-  /* Align ruler ticks with card column (left gutter width for − / +) */
-  --ordering-indent-gutter: 44px;
+  /* Align ruler ticks with card column (horizontal − / + gutter) */
+  --ordering-indent-gutter: 56px;
   border: 1px solid #cfd3db;
   border-radius: 14px;
   background: #f0edb6;
@@ -92,10 +100,24 @@
 
 .orderingRow {
   display: flex;
-  align-items: stretch;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 8px;
   border-radius: 10px;
   transition: box-shadow 0.15s ease;
+}
+
+/* Single-line cards: don’t stretch to match gutter height */
+.orderingLineCard {
+  align-self: flex-start;
+}
+
+.orderingCodeWrap {
+  padding: 2px 8px 3px;
+}
+
+.orderingCodeText {
+  line-height: 1.28;
+  font-size: 0.9rem;
 }
 
 .orderingRowHintTarget {
@@ -119,23 +141,24 @@
   width: var(--ordering-indent-gutter);
   flex-shrink: 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 4px 0;
+  gap: 4px;
+  padding: 6px 0;
   pointer-events: auto;
+  box-sizing: border-box;
 }
 
 .indentStepBtn {
-  width: 28px;
-  height: 26px;
+  width: 26px;
+  height: 24px;
   border-radius: 6px;
   border: 1.5px solid rgba(59, 130, 246, 0.22);
   background: rgba(59, 130, 246, 0.08);
   color: #1d4ed8;
   font-weight: 800;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   line-height: 1;
   cursor: pointer;
   padding: 0;
@@ -330,4 +353,25 @@
   padding: 10px 14px;
   font-weight: 700;
   cursor: pointer;
+}
+
+@media (max-width: 980px) {
+  .boardTopRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .boardHintCol {
+    max-width: none;
+  }
+
+  .controlsRow {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+
+  .ghostButton,
+  .checkButton {
+    flex: 1;
+  }
 }
