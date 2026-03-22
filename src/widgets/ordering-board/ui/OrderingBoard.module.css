@@ -45,10 +45,12 @@
   background: #f0edb6;
   /* Mirrors PuzzleBoard target lane: header + body padding */
   padding: 0;
-  min-height: 220px;
+  /* Height follows content — avoid flex:1 on children stretching empty yellow area */
+  min-height: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
 }
 
 .orderingLaneHeader {
@@ -102,7 +104,7 @@
   gap: 4px;
   max-width: 100%;
   padding: 6px 8px 8px;
-  flex: 1;
+  flex: 0 0 auto;
 }
 
 .orderingRow {
