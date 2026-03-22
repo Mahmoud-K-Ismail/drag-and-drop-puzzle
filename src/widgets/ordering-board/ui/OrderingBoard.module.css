@@ -14,6 +14,11 @@
   align-content: start;
 }
 
+/* Beat .board min-height: 74vh so order mode doesn’t leave a tall empty band */
+.board.boardOrdering {
+  min-height: unset;
+}
+
 .boardTopRow {
   display: flex;
   justify-content: space-between;
@@ -52,13 +57,14 @@
   /* Mirrors PuzzleBoard target lane: header + body padding */
   padding: 0;
   min-height: 0;
-  height: fit-content;
+  height: auto;
   max-height: none;
   /* allow line explanation popovers to extend past the yellow box edges */
   overflow: visible;
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  flex: 0 0 auto;
 }
 
 .orderingLaneHeader {
@@ -113,8 +119,9 @@
   gap: 2px;
   width: 100%;
   box-sizing: border-box;
-  padding: 4px 8px 6px;
+  padding: 4px 8px 4px;
   flex: 0 0 auto;
+  flex-grow: 0;
 }
 
 .orderingRow {
@@ -153,11 +160,18 @@
   user-select: none;
 }
 
-/* Beat .orderingLineCard width:max-content so the card fills the measured row minus gutter */
+/* Drag ghost article: no .orderingLineCard (avoids max-content / max-width fighting measured px) */
+.orderingDragOverlayArticle {
+  box-sizing: border-box;
+}
+
+/*
+ * Pin pixel width from the source article — do not use flex:1 + min-width:0 or lines wrap mid-drag.
+ */
 .orderingDragOverlayRow > .orderingDragOverlayArticle {
-  flex: 1 1 auto;
-  min-width: 0;
-  width: auto;
+  flex: 0 0 auto;
+  min-width: unset;
+  width: var(--ordering-drag-article-px, auto);
   max-width: none;
 }
 
@@ -165,13 +179,14 @@
   background: rgba(255, 255, 255, 0.42);
 }
 
-/* Shrink-wrap to code width (not full yellow lane) */
+/* fit-content includes code + ? so the white card fully wraps the help button */
 .orderingLineCard {
   align-self: flex-start;
   flex: 0 0 auto;
-  width: max-content;
+  width: fit-content;
   max-width: min(100%, 52rem);
   min-width: 0;
+  box-sizing: border-box;
   box-shadow: 0 1px 2px rgba(31, 41, 55, 0.08);
   overflow: visible;
 }
@@ -181,9 +196,10 @@
   flex-direction: row;
   align-items: center;
   gap: 6px;
-  padding: 2px 4px 2px 6px;
+  padding: 2px 6px 2px 6px;
   min-width: 0;
-  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .orderingHelpWrap {

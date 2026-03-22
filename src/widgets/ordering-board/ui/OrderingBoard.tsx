@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   closestCenter,
   DndContext,
@@ -201,7 +201,7 @@ export function OrderingBoard() {
 
   const [openTooltipId, setOpenTooltipId] = useState<string | null>(null)
   const [activeDragId, setActiveDragId] = useState<string | null>(null)
-  const [activeDragWidth, setActiveDragWidth] = useState<number | null>(null)
+  const [dragOverlaySize, setDragOverlaySize] = useState<{ row: number; article: number } | null>(null)
   const [hintOnCooldown, setHintOnCooldown] = useState(false)
   const [hintCooldownTick, setHintCooldownTick] = useState(0)
   /** Line id driving the indent ruler + gutter highlight (hover or drag) */
@@ -323,16 +323,23 @@ export function OrderingBoard() {
     /* useSortable + max-content cards: rect.initial.width is often wrong; measure the real row */
     const block = document.querySelector(`[data-block-id="${id}"]`) as HTMLElement | null
     const row = block?.closest('[data-ordering-row]') as HTMLElement | null
-    const fromDom = row?.getBoundingClientRect().width
+    const articleW = block?.getBoundingClientRect().width
+    const rowW = row?.getBoundingClientRect().width
     const fromKit = event.active.rect.current.initial?.width
-    const w = fromDom && fromDom > 8 ? fromDom : (fromKit && fromKit > 8 ? fromKit : null)
-    setActiveDragWidth(w)
+    if (articleW && rowW && articleW > 8 && rowW > 8) {
+      setDragOverlaySize({ row: Math.round(rowW), article: Math.round(articleW) })
+    } else if (fromKit && fromKit > 8) {
+      const approxArticle = Math.max(80, Math.round(fromKit - 62))
+      setDragOverlaySize({ row: Math.round(fromKit), article: approxArticle })
+    } else {
+      setDragOverlaySize(null)
+    }
   }
 
   function handleDragEnd(event: DragEndEvent) {
     const activeId = String(event.active.id)
     setActiveDragId(null)
-    setActiveDragWidth(null)
+    setDragOverlaySize(null)
     focusRulerLine(activeId)
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -386,7 +393,7 @@ export function OrderingBoard() {
         onDragCancel={(event) => {
           focusRulerLine(String(event.active.id))
           setActiveDragId(null)
-          setActiveDragWidth(null)
+          setDragOverlaySize(null)
         }}
         onDragEnd={handleDragEnd}
       >
@@ -488,14 +495,22 @@ export function OrderingBoard() {
           {activeLine ? (
             <div
               className={styles.orderingDragOverlayRow}
-              style={activeDragWidth ? { width: `${Math.round(activeDragWidth)}px`, maxWidth: 'min(100vw - 24px, 100%)' } : undefined}
+              style={
+                dragOverlaySize
+                  ? ({
+                      width: `${dragOverlaySize.row}px`,
+                      maxWidth: 'min(calc(100vw - 24px), 100%)',
+                      ['--ordering-drag-article-px' as string]: `${dragOverlaySize.article}px`,
+                    } as CSSProperties)
+                  : undefined
+              }
             >
               <div className={`${styles.indentGutter} ${styles.orderingDragOverlayGutter}`} aria-hidden>
                 <span className={styles.orderingDragGutterFaint}>−</span>
                 <span className={styles.orderingDragGutterFaint}>+</span>
               </div>
               <article
-                className={`${puzzleStyles.card} ${styles.orderingLineCard} ${puzzleStyles.cardDragging} ${puzzleStyles.overlayCard} ${styles.orderingDragOverlayArticle}`}
+                className={`${puzzleStyles.card} ${puzzleStyles.cardDragging} ${puzzleStyles.overlayCard} ${styles.orderingDragOverlayArticle}`}
               >
                 <div className={styles.orderingCodeMetaRow}>
                   <div className={`${puzzleStyles.codeContainer} ${styles.orderingCodeWrap}`}>
