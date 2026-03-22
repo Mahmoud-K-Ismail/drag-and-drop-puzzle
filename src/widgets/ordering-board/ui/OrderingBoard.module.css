@@ -8,6 +8,12 @@
   background: linear-gradient(180deg, rgba(243, 247, 252, 0.95) 0%, rgba(236, 241, 248, 0.95) 100%);
 }
 
+/* Order list: don’t stretch the workspace to 74vh — removes dead space under the yellow panel */
+.boardOrdering {
+  min-height: 0;
+  align-content: start;
+}
+
 .boardTopRow {
   display: flex;
   justify-content: space-between;
@@ -123,10 +129,41 @@
 .orderingLineCard {
   align-self: flex-start;
   box-shadow: 0 1px 3px rgba(31, 41, 55, 0.08);
+  overflow: visible;
+}
+
+.orderingCardInner {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.orderingHelpRow {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 3px 6px 2px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 9px 9px 0 0;
+}
+
+.orderingHelpWrap {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  z-index: 2;
+}
+
+.orderingHelpWrapOpen {
+  z-index: 2600;
 }
 
 .orderingCodeWrap {
-  padding: 1px 6px 2px;
+  padding: 1px 6px 4px;
+  border-radius: 0 0 9px 9px;
 }
 
 .orderingCodeText {
@@ -243,17 +280,19 @@
 }
 
 .hintStrip {
-  min-height: 34px;
   margin: 0;
   box-sizing: border-box;
 }
 
-.hintStripPlaceholder {
+.hintStripEmpty {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.hintStripHasMessage {
   min-height: 34px;
-  border-radius: 8px;
-  border: 1px dashed rgba(100, 116, 139, 0.3);
-  background: rgba(241, 245, 249, 0.75);
-  box-sizing: border-box;
+  margin: 0;
 }
 
 .hintStripActive .hintText {

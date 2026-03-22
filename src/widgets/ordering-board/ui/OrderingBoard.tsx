@@ -90,7 +90,9 @@ function OrderingLineCard({
     transform: CSS.Transform.toString(transform),
     transition,
     marginLeft: `${indent * INDENT_STEP}px`,
-    flex: '1 1 0%',
+    flex: '0 1 auto',
+    width: 'min(100%, 40rem)',
+    maxWidth: '100%',
     minWidth: 0,
     opacity: isDragging ? 0.35 : 1,
   }
@@ -140,32 +142,38 @@ function OrderingLineCard({
         {...attributes}
         {...listeners}
       >
-        <div className={`${puzzleStyles.blockActions} ${tooltipOpen ? puzzleStyles.blockActionsActive : ''}`}>
-          <button
-            className={puzzleStyles.infoButton}
-            type="button"
-            aria-label="Show explanation for this line"
-            onPointerDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation()
-              onToggleTooltip(id)
-            }}
-          >
-            ?
-          </button>
-          {tooltipOpen ? (
-            <div
-              className={puzzleStyles.explanationTooltip}
-              onPointerDown={(e) => e.stopPropagation()}
-            >
-              {explanation || 'No explanation.'}
+        {/* Inline chrome (not position:absolute) so ? stays inside the white card with dnd-kit transforms */}
+        <div className={styles.orderingCardInner}>
+          <div className={styles.orderingHelpRow}>
+            <div className={`${styles.orderingHelpWrap} ${tooltipOpen ? styles.orderingHelpWrapOpen : ''}`}>
+              <button
+                className={puzzleStyles.infoButton}
+                type="button"
+                aria-label="Show explanation for this line"
+                aria-expanded={tooltipOpen}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onToggleTooltip(id)
+                }}
+              >
+                ?
+              </button>
+              {tooltipOpen ? (
+                <div
+                  className={puzzleStyles.explanationTooltip}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  {explanation || 'No explanation.'}
+                </div>
+              ) : null}
             </div>
-          ) : null}
-        </div>
-        <div className={`${puzzleStyles.codeContainer} ${styles.orderingCodeWrap}`}>
-          <pre className={`${puzzleStyles.codeText} ${styles.orderingCodeText}`}>
-            <code dangerouslySetInnerHTML={{ __html: highlightedCode || escapeHtml(code) }} />
-          </pre>
+          </div>
+          <div className={`${puzzleStyles.codeContainer} ${styles.orderingCodeWrap}`}>
+            <pre className={`${puzzleStyles.codeText} ${styles.orderingCodeText}`}>
+              <code dangerouslySetInnerHTML={{ __html: highlightedCode || escapeHtml(code) }} />
+            </pre>
+          </div>
         </div>
       </article>
     </div>
@@ -251,7 +259,13 @@ export function OrderingBoard() {
     if (!openTooltipId) return
     function dismiss(e: MouseEvent) {
       const target = e.target as HTMLElement
-      if (target.closest(`.${puzzleStyles.infoButton}`) || target.closest(`.${puzzleStyles.explanationTooltip}`)) return
+      if (
+        target.closest(`.${puzzleStyles.infoButton}`)
+        || target.closest(`.${puzzleStyles.explanationTooltip}`)
+        || target.closest(`.${styles.orderingHelpWrap}`)
+      ) {
+        return
+      }
       setOpenTooltipId(null)
     }
     document.addEventListener('pointerdown', dismiss, true)
@@ -363,7 +377,7 @@ export function OrderingBoard() {
         }}
         onDragEnd={handleDragEnd}
       >
-        <section className={styles.board}>
+        <section className={`${styles.board} ${styles.boardOrdering}`}>
           <div className={styles.boardTopRow}>
             <div className={styles.boardHintCol}>
               <p className={styles.boardHint}>
@@ -392,15 +406,16 @@ export function OrderingBoard() {
             </div>
           </div>
 
-          <div className={`${styles.hintStrip} ${hintMessage ? puzzleStyles.hintStripActive : ''}`} aria-live="polite">
+          <div
+            className={`${styles.hintStrip} ${hintMessage ? `${puzzleStyles.hintStripActive} ${styles.hintStripHasMessage}` : styles.hintStripEmpty}`}
+            aria-live="polite"
+          >
             {hintMessage ? (
               <p className={styles.hintText} onClick={clearHint} role="status">
                 {hintMessage}
                 <span className={styles.hintDismiss}>dismiss</span>
               </p>
-            ) : (
-              <div className={styles.hintStripPlaceholder} aria-hidden />
-            )}
+            ) : null}
           </div>
 
           <div ref={listBodyRef} className={styles.orderingScroll}>
