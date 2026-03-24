@@ -1,6 +1,6 @@
 /**
  * Output language dropdown + API `language` field.
- * Single source of truth: keep `puzzle.schema` / `api/generate` z.enum aligned with this tuple.
+ * Keep aligned with `api/supportedLanguages.ts` and `puzzle.schema` z.enum.
  */
 export const SUPPORTED_LANGUAGE_VALUES = [
   'auto',
